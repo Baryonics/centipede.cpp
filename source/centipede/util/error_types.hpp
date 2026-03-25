@@ -20,6 +20,7 @@ namespace centipede
                                     //!< writer::Binary.
         writer_file_fail_to_open,   //!< File failed to be open.
         writer_uninitialized,       //!< Write is not initialized.
+        reader_file_fail_to_open,   //!< Input File failed to be open.
     };
 
 } // namespace centipede
