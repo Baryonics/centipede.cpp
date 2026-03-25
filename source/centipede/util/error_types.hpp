@@ -29,6 +29,7 @@ namespace centipede
         analysis_factor_matrix_zero, //!< Global factor matrix is zero matrix.
         analysis_rhs_vector_zero,    //!< Global right-hand-side vector is zero vector.
         reader_file_fail_to_open,    //!< Input File failed to be open.
+        reader_file_fail_to_read,    //!< Input file failed to read
     };
 
 } // namespace centipede
