@@ -10,6 +10,9 @@
 #include <utility>
 #include <vector>
 
+// TODO: Add documentation
+// TODO: Add integration and unit tests
+
 namespace centipede::reader
 {
     /**
@@ -62,11 +65,12 @@ namespace centipede::reader
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
-        [[nodiscard]] auto get_current_entry() const -> const auto& { return entry_buffer_; }
+        [[nodiscard]] auto get_current_entry() const -> const auto& { return entry_buffer_; } // TODO: span it up!
 
       private:
         std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
-        std::vector<uint32_t> raw_entry_buffer_;
+        std::vector<char> raw_entry_buffer_;
+        std::pair<std::vector<uint32_t>, std::vector<float>> entrypoint_buffer_;
         Config config_;
         std::ifstream input_file_; //!< Input file handler
 
