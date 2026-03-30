@@ -1,5 +1,4 @@
 #include "binary.hpp"
-#include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <cassert>
@@ -68,28 +67,26 @@ namespace centipede::reader
     {
         auto entry_size = read_size_from_file(input_file_);
         auto half_entry_size = entry_size / 2U;
-        input_file_.read(raw_entry_buffer_.data(), entry_size);
+        if (!input_file_.read(raw_entry_buffer_.data(), entry_size))
+        {
+            return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+        }
         auto data_span = std::span{ raw_entry_buffer_ };
         auto data_index_span = data_span.subspan(half_entry_size);
         auto data_value_span = data_span.subspan(0, half_entry_size);
 
         auto zero_counter = std::size_t{};
         auto entrypoint_counter = std::size_t{};
-        for (auto idx : std::views::iota(std::size_t{ 0 }, half_entry_size - 1) | std::views::stride(sizeof(uint32_t)))
+        auto at_globals = false;
+        for (auto idx : std::views::iota(std::size_t{ 0 }, half_entry_size) | std::views::stride(sizeof(uint32_t)))
         {
-            if (zero_counter == 0)
-            {
-                break;
-            }
-
-            auto data_index = get_value_from_raw<unsigned int>(data_index_span, idx);
+            auto data_index = get_value_from_raw<uint32_t>(data_index_span, idx);
             auto data_value = get_value_from_raw<float>(data_value_span, idx);
 
-            auto at_globals = false;
             if (data_index == 0)
             {
                 zero_counter++;
-                switch (zero_counter % 3)
+                switch (zero_counter % 3U)
                 {
                     case 0:
                         entrypoint_counter++;
@@ -107,7 +104,7 @@ namespace centipede::reader
                             ErrorCode::reader_file_fail_to_read
                         }; // a.k.a math suddenly stopped mathing
                 }
-                break;
+                continue;
             }
 
             if (at_globals)
