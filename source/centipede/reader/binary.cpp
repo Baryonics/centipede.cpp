@@ -37,6 +37,15 @@ namespace centipede::reader
             // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
             return read_size;
         }
+
+        enum class ReadingState : uint8_t
+        {
+            file_init,
+            measurement,
+            locals,
+            sigma,
+            globals,
+        };
     } // namespace
 
     auto Binary::init() -> EnumError<>
@@ -72,42 +81,57 @@ namespace centipede::reader
         auto data_index_span = data_span.subspan(half_entry_size);
         auto data_value_span = data_span.subspan(0, half_entry_size);
 
-        auto zero_counter = std::size_t{};
         auto entrypoint_counter = std::size_t{};
-        auto at_globals = false;
-        for (auto [data_index, data_value] : std::views::zip(data_index_span, data_value_span))
+
+        auto current_state = ReadingState::file_init;
+
+        for (auto [data_index, data_value_raw] : std::views::zip(data_index_span, data_value_span))
         {
-            if (data_index == 0)
+            auto data_value = static_cast<float>(data_value_raw);
+            switch (current_state)
             {
-                zero_counter++;
-                // The first element after size in the file is always zero. Skip that
-                switch (zero_counter % 3U)
-                {
-                    case 0:
-                        entrypoint_counter++;
+                case ReadingState::file_init:
+                    if (data_index != 0)
+                    {
+                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+                    }
+                    current_state = ReadingState::measurement;
+                    break;
+                case ReadingState::locals:
+                    if (data_index == 0)
+                    {
+                        current_state = ReadingState::sigma;
                         break;
-                    case 1:
-                        entry_buffer_[entrypoint_counter].set_measurement(static_cast<float>(data_value));
-                        at_globals = false;
+                    }
+                    entry_buffer_[entrypoint_counter].add_local(data_value);
+                    break;
+                case ReadingState::sigma:
+                    if (data_index == 0)
+                    {
+                        current_state = ReadingState::globals;
                         break;
-                    case 2:
-                        entry_buffer_[entrypoint_counter].set_sigma(static_cast<float>(data_value));
-                        at_globals = true;
+                    }
+                    entry_buffer_[entrypoint_counter].add_global(data_index, data_value);
+                    break;
+                case ReadingState::globals:
+                    if (data_index != 0)
+                    {
+                        entry_buffer_[entrypoint_counter].add_global(data_index, data_value);
                         break;
-                    default:
-                        return std::unexpected{
-                            ErrorCode::reader_file_fail_to_read
-                        }; // a.k.a math suddenly stopped mathing
-                }
-                continue;
-            }
-            if (at_globals)
-            {
-                entry_buffer_[entrypoint_counter].add_global(data_index, static_cast<float>(data_value));
-            }
-            else
-            {
-                entry_buffer_[entrypoint_counter].add_local(static_cast<float>(data_value));
+                    }
+                    entrypoint_counter++;
+                    [[fallthrough]];
+                case ReadingState::measurement:
+                    if (data_index == 0)
+                    {
+                        entry_buffer_[entrypoint_counter].set_measurement(data_value);
+                        current_state = ReadingState::locals;
+                        break;
+                    }
+                    else
+                    {
+                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+                    }
             }
         }
         size_ = entrypoint_counter;
