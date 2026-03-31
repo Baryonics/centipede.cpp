@@ -28,8 +28,10 @@ namespace centipede
         analysis_global_negative_definite,
         analysis_factor_matrix_zero, //!< Global factor matrix is zero matrix.
         analysis_rhs_vector_zero,    //!< Global right-hand-side vector is zero vector.
-        reader_file_fail_to_open,    //!< Input File failed to be open.
+        reader_file_fail_to_open,    //!< Input file failed to be open.
         reader_file_fail_to_read,    //!< Input file failed to read
+        reader_uninitialized,        //!< Reader is not initialized.
+        reader_buffer_overflow,      //!< Buffer size is too small for a new entry occurs. See @ref reader::Binary.
     };
 
 } // namespace centipede
