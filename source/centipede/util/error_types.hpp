@@ -86,6 +86,14 @@ struct std::formatter<centipede::ErrorCode>
                 return std::format_to(ctx.out(), "Global factor matrix is zero matrix.");
             case analysis_rhs_vector_zero:
                 return std::format_to(ctx.out(), "Global right-hand-side vector is zero vector.");
+            case reader_file_fail_to_open:
+                return std::format_to(ctx.out(), "Reader: Failed to open the file.");
+            case reader_uninitialized:
+                return std::format_to(ctx.out(), "Reader: Must be initialized beforehand!");
+            case reader_file_fail_to_read:
+                return std::format_to(ctx.out(), "Reader: Failed to read the file.");
+            case reader_buffer_overflow:
+                return std::format_to(ctx.out(), "Reader: Cannot read the file. Buffer size will be exceeded!");
             case invalid:
                 return std::format_to(ctx.out(), "Error due to no evaluation!");
             default:
