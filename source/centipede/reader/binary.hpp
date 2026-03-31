@@ -2,6 +2,7 @@
 
 #include "centipede/data/entry.hpp"
 #include "centipede/util/common_definitions.hpp"
+#include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -67,7 +68,7 @@ namespace centipede::reader
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
-        [[nodiscard]] auto get_current_entry() const -> const auto& { return entry_buffer_; } // TODO: span it up!
+        [[nodiscard]] auto get_current_entry() const -> const auto& { return entry_buffer_; }
 
       private:
         std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
