@@ -103,18 +103,10 @@ namespace centipede::reader
                         entry_buffer_[entrypoint_counter].add_local(data_value);
                         break;
                     }
-                    else
-                    {
-                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
-                    }
                     [[fallthrough]];
                 case ReadingState::sigma:
-                    if (data_index == 0)
-                    {
-                        entry_buffer_[entrypoint_counter].set_sigma(data_value);
-                        current_state = ReadingState::globals;
-                        break;
-                    }
+                    entry_buffer_[entrypoint_counter].set_sigma(data_value);
+                    current_state = ReadingState::globals;
                     break;
                 case ReadingState::globals:
                     if (data_index != 0)
@@ -125,16 +117,9 @@ namespace centipede::reader
                     entrypoint_counter++;
                     [[fallthrough]];
                 case ReadingState::measurement:
-                    if (data_index == 0)
-                    {
-                        entry_buffer_[entrypoint_counter].set_measurement(data_value);
-                        current_state = ReadingState::locals;
-                        break;
-                    }
-                    else
-                    {
-                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
-                    }
+                    entry_buffer_[entrypoint_counter].set_measurement(data_value);
+                    current_state = ReadingState::locals;
+                    break;
             }
         }
         size_ = entrypoint_counter;
