@@ -53,6 +53,14 @@ struct std::formatter<centipede::ErrorCode>
                 return std::format_to(ctx.out(), "Writer: Failed to open the file.");
             case writer_uninitialized:
                 return std::format_to(ctx.out(), "Writer: Must be initialized beforehand!");
+            case reader_file_fail_to_open:
+                return std::format_to(ctx.out(), "Reader: Failed to open the file.");
+            case reader_uninitialized:
+                return std::format_to(ctx.out(), "Reader: Must be initialized beforehand!");
+            case reader_file_fail_to_read:
+                return std::format_to(ctx.out(), "Reader: Failed to read the file.");
+            case reader_buffer_overflow:
+                return std::format_to(ctx.out(), "Reader: Cannot read the file. Buffer size will be exceeded!");
             case invalid:
             default:
                 break;
