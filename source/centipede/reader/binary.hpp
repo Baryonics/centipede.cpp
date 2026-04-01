@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -68,7 +69,7 @@ namespace centipede::reader
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
-        [[nodiscard]] auto get_current_entry() const -> const auto& { return entry_buffer_; }
+        [[nodiscard]] auto get_current_entry() const -> auto { return std::span{ entry_buffer_ }.subspan(size_); }
 
       private:
         std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
