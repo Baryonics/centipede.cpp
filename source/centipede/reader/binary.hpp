@@ -2,7 +2,6 @@
 
 #include "centipede/data/entry.hpp"
 #include "centipede/util/common_definitions.hpp"
-#include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +13,21 @@
 
 // TODO: Add documentation
 // TODO: Add integration and unit tests
+
+namespace centipede::internal
+{
+
+    enum class ReadingState : uint8_t
+    {
+        file_init,
+        measurement,
+        locals,
+        sigma,
+        globals,
+        new_entrypoint,
+        done
+    };
+}
 
 namespace centipede::reader
 {
@@ -65,7 +79,11 @@ namespace centipede::reader
          */
         [[nodiscard]] auto init() -> EnumError<>;
 
-        void cloise() { input_file_.close(); }
+        void cloise()
+        {
+            current_state_ = internal::ReadingState::file_init;
+            input_file_.close();
+        }
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
@@ -74,12 +92,13 @@ namespace centipede::reader
       private:
         std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
         std::pair<std::vector<uint32_t>, std::vector<float>> raw_entry_buffer_;
-        // std::vector<uint32_t> raw_entry_buffer_;
         std::pair<std::vector<uint32_t>, std::vector<float>> entrypoint_buffer_;
         Config config_;            //!< Member variable for the configuration.
         std::ifstream input_file_; //!< Input file handler
         std::size_t size_{};       //!< Number of Entrypoints in the current entry
+        internal::ReadingState current_state_ = internal::ReadingState::file_init;
 
         void reset();
+        void read_entry_to_buffer(uint32_t read_size);
     };
 } // namespace centipede::reader
