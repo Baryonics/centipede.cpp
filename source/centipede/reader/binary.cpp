@@ -9,6 +9,7 @@
 #include <expected>
 #include <fstream>
 #include <ios>
+#include <limits>
 #include <ranges>
 #include <type_traits>
 #include <vector>
@@ -36,6 +37,10 @@ namespace centipede::reader
             requires(sizeof(T) == sizeof(uint32_t) and std::is_trivially_copyable_v<T>)
         auto read_from_file(std::ifstream& input_file, std::vector<T>& data) -> EnumError<std::size_t>
         {
+            if (data.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
             const auto read_size = data.size() * sizeof(T);
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
             input_file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(read_size));
