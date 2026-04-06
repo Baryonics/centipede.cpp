@@ -99,6 +99,6 @@ namespace centipede::reader
         internal::ReadingState current_state_ = internal::ReadingState::file_init;
 
         void reset();
-        void read_entry_to_buffer(uint32_t read_size);
+        auto read_entry_to_buffer(uint32_t read_size) -> EnumError<>;
     };
 } // namespace centipede::reader

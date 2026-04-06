@@ -18,23 +18,31 @@ namespace centipede::reader
     {
         template <typename T>
             requires(sizeof(T) == sizeof(uint32_t))
-        auto read_from_file(std::ifstream& input_file, T& data)
+        auto read_from_file(std::ifstream& input_file, T& data) -> EnumError<std::size_t>
         {
-            const auto read_size = sizeof(uint32_t);
+            const auto read_size = sizeof(T);
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
             input_file.read(reinterpret_cast<char*>(&data), static_cast<std::streamsize>(read_size));
             // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
+            if (input_file.gcount() != static_cast<std::streamsize>(read_size))
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
             return read_size;
         }
 
         template <typename T>
             requires(sizeof(T) == sizeof(uint32_t))
-        auto read_from_file(std::ifstream& input_file, std::vector<T>& data)
+        auto read_from_file(std::ifstream& input_file, std::vector<T>& data) -> EnumError<std::size_t>
         {
             const auto read_size = data.size() * sizeof(T);
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
             input_file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(read_size));
             // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
+            if (input_file.gcount() != static_cast<std::streamsize>(read_size))
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
             return read_size;
         }
 
@@ -139,12 +147,18 @@ namespace centipede::reader
             return std::unexpected{ ErrorCode::reader_uninitialized };
         }
         auto entry_size = uint32_t{};
-        read_from_file(input_file_, entry_size);
+        if (auto result = read_from_file(input_file_, entry_size); !result)
+        {
+            return std::unexpected(result.error());
+        }
         if (entry_size > config_.max_bufferpoint_size)
         {
             return std::unexpected{ ErrorCode::reader_buffer_overflow };
         }
-        read_entry_to_buffer(entry_size);
+        if (auto result = read_entry_to_buffer(entry_size); !result)
+        {
+            return std::unexpected{ result.error() };
+        }
         auto half_entry_size = entry_size / 2U;
         auto entrypoint_counter = std::size_t{ 0 };
         auto current_frame = ReadingFrame{};
@@ -182,11 +196,18 @@ namespace centipede::reader
         size_ = 0U;
     }
 
-    void Binary::read_entry_to_buffer(uint32_t read_size)
+    auto Binary::read_entry_to_buffer(uint32_t read_size) -> EnumError<>
     {
         raw_entry_buffer_.first.resize(read_size / 2U);
         raw_entry_buffer_.second.resize(read_size / 2U);
-        read_from_file(input_file_, raw_entry_buffer_.second);
-        read_from_file(input_file_, raw_entry_buffer_.first);
+        if (auto result = read_from_file(input_file_, raw_entry_buffer_.second); !result)
+        {
+            return std::unexpected{ result.error() };
+        }
+        if (auto result = read_from_file(input_file_, raw_entry_buffer_.first); !result)
+        {
+            return std::unexpected{ result.error() };
+        }
+        return {};
     }
 } // namespace centipede::reader
