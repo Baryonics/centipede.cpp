@@ -10,6 +10,7 @@
 #include <fstream>
 #include <ios>
 #include <ranges>
+#include <type_traits>
 #include <vector>
 
 namespace centipede::reader
@@ -17,7 +18,7 @@ namespace centipede::reader
     namespace
     {
         template <typename T>
-            requires(sizeof(T) == sizeof(uint32_t))
+            requires(sizeof(T) == sizeof(uint32_t) and std::is_trivially_copyable_v<T>)
         auto read_from_file(std::ifstream& input_file, T& data) -> EnumError<std::size_t>
         {
             const auto read_size = sizeof(T);
@@ -32,7 +33,7 @@ namespace centipede::reader
         }
 
         template <typename T>
-            requires(sizeof(T) == sizeof(uint32_t))
+            requires(sizeof(T) == sizeof(uint32_t) and std::is_trivially_copyable_v<T>)
         auto read_from_file(std::ifstream& input_file, std::vector<T>& data) -> EnumError<std::size_t>
         {
             const auto read_size = data.size() * sizeof(T);
