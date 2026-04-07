@@ -14,9 +14,8 @@
 // TODO: Add documentation
 // TODO: Add integration and unit tests
 
-namespace centipede::internal
+namespace centipede::reader
 {
-
     enum class ReadingState : uint8_t
     {
         file_init,
@@ -27,10 +26,7 @@ namespace centipede::internal
         new_entrypoint,
         done
     };
-}
 
-namespace centipede::reader
-{
     /**
      * @class Binary
      * @brief Class for reading binary files.
@@ -50,14 +46,9 @@ namespace centipede::reader
          */
         struct Config
         {
-            std::string in_filename = "output.bin";                      //!< Input binary filename.
+            std::string in_filename;                                     //!< Input binary filename.
             uint32_t max_bufferpoint_size = common::DEFAULT_BUFFER_SIZE; //!< maximum bufferpoint for an entry.
         };
-
-        /**
-         * @brief Default constructor.
-         */
-        Binary() = default;
 
         /**
          * @brief Constructor takes an argument for  the configuration.
@@ -79,9 +70,9 @@ namespace centipede::reader
          */
         [[nodiscard]] auto init() -> EnumError<>;
 
-        void cloise()
+        void close()
         {
-            current_state_ = internal::ReadingState::file_init;
+            current_state_ = ReadingState::file_init;
             input_file_.close();
         }
 
@@ -96,7 +87,7 @@ namespace centipede::reader
         Config config_;            //!< Member variable for the configuration.
         std::ifstream input_file_; //!< Input file handler
         std::size_t size_{};       //!< Number of Entrypoints in the current entry
-        internal::ReadingState current_state_ = internal::ReadingState::file_init;
+        ReadingState current_state_ = ReadingState::file_init;
 
         void reset();
         auto read_entry_to_buffer(uint32_t read_size) -> EnumError<>;

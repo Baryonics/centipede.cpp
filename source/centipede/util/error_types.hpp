@@ -24,6 +24,7 @@ namespace centipede
         reader_file_fail_to_read,   //!< Input file failed to read
         reader_uninitialized,       //!< Reader is not initialized.
         reader_buffer_overflow,     //!< Buffer size is too small for a new entry occurs. See @ref reader::Binary.
+        reader_invalid_filename,    //!< Filename is invalid or empty
     };
 
 } // namespace centipede
@@ -61,6 +62,8 @@ struct std::formatter<centipede::ErrorCode>
                 return std::format_to(ctx.out(), "Reader: Failed to read the file.");
             case reader_buffer_overflow:
                 return std::format_to(ctx.out(), "Reader: Cannot read the file. Buffer size will be exceeded!");
+            case reader_invalid_filename:
+                return std::format_to(ctx.out(), "Reader: Filename is either empty or invalid!");
             case invalid:
             default:
                 break;
