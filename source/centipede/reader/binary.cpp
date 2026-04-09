@@ -59,7 +59,7 @@ namespace centipede::reader
                                           EntryPoint<>& current_entrypoint,
                                           ReadingState& current_state)
         {
-            assert(current_state == ReadingState::measurement and current_frame.index == 0);
+            assert(current_state == ReadingState::measurement);
             current_entrypoint.set_measurement(current_frame.value);
             current_state = ReadingState::locals;
         }
@@ -97,6 +97,12 @@ namespace centipede::reader
             current_entrypoint.add_global(current_frame.index - 1U, current_frame.value);
         }
 
+        constexpr void handle_done(const ReadingFrame& current_frame, ReadingState& current_state)
+        {
+            assert(current_state == ReadingState::done and current_frame.index != 0);
+            current_state = ReadingState::measurement;
+        }
+
         constexpr auto handle_state(const ReadingFrame& current_frame,
                                     EntryPoint<>& current_entrypoint,
                                     ReadingState& current_state) -> EnumError<>
@@ -104,13 +110,14 @@ namespace centipede::reader
             switch (current_state)
             {
                 case ReadingState::file_init:
-                    if (current_frame.index != 0)
+                    if (current_frame.next_index != 0)
                     {
                         return std::unexpected{ ErrorCode::reader_file_fail_to_read };
                     }
                     current_state = ReadingState::measurement;
                     break;
-                case ReadingState::done:
+                case ReadingState::new_entrypoint:
+                    current_state = ReadingState::measurement;
                     [[fallthrough]];
                 case ReadingState::measurement:
                     handle_measurement(current_frame, current_entrypoint, current_state);
@@ -124,8 +131,8 @@ namespace centipede::reader
                 case ReadingState::globals:
                     handle_globals(current_frame, current_entrypoint, current_state);
                     break;
-                case ReadingState::new_entrypoint:
-                    current_state = ReadingState::measurement;
+                case ReadingState::done:
+                    handle_done(current_frame, current_state);
                     break;
             }
             return {};
