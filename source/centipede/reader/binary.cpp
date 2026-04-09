@@ -97,7 +97,6 @@ namespace centipede::reader
             current_entrypoint.add_global(current_frame.index - 1U, current_frame.value);
         }
 
-        // Returns true on new entrypoint
         constexpr auto handle_state(const ReadingFrame& current_frame,
                                     EntryPoint<>& current_entrypoint,
                                     ReadingState& current_state) -> EnumError<>
