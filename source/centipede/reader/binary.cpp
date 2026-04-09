@@ -59,6 +59,7 @@ namespace centipede::reader
                                           EntryPoint<>& current_entrypoint,
                                           ReadingState& current_state)
         {
+            assert(current_state == ReadingState::measurement and current_frame.index == 0);
             current_entrypoint.set_measurement(current_frame.value);
             current_state = ReadingState::locals;
         }
@@ -67,6 +68,7 @@ namespace centipede::reader
                                      EntryPoint<>& current_entrypoint,
                                      ReadingState& current_state)
         {
+            assert(current_state == ReadingState::locals and current_frame.index != 0);
             if (current_frame.next_index == 0)
             {
                 current_state = ReadingState::sigma;
@@ -78,6 +80,7 @@ namespace centipede::reader
                                     EntryPoint<>& current_entrypoint,
                                     ReadingState& current_state)
         {
+            assert(current_state == ReadingState::sigma and current_frame.index == 0);
             current_entrypoint.set_sigma(current_frame.value);
             current_state = ReadingState::globals;
         }
@@ -86,6 +89,7 @@ namespace centipede::reader
                                       EntryPoint<>& current_entrypoint,
                                       ReadingState& current_state)
         {
+            assert(current_state == ReadingState::globals and current_frame.index != 0);
             if (current_frame.next_index == 0)
             {
                 current_state = ReadingState::new_entrypoint;
@@ -96,11 +100,15 @@ namespace centipede::reader
         // Returns true on new entrypoint
         constexpr auto handle_state(const ReadingFrame& current_frame,
                                     EntryPoint<>& current_entrypoint,
-                                    ReadingState& current_state) -> bool
+                                    ReadingState& current_state) -> EnumError<>
         {
             switch (current_state)
             {
                 case ReadingState::file_init:
+                    if (current_frame.index != 0)
+                    {
+                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+                    }
                     current_state = ReadingState::measurement;
                     break;
                 case ReadingState::done:
@@ -119,14 +127,18 @@ namespace centipede::reader
                     break;
                 case ReadingState::new_entrypoint:
                     current_state = ReadingState::measurement;
-                    return true;
+                    break;
             }
-            return false;
+            return {};
         }
     } // namespace
 
     auto Binary::init() -> EnumError<>
     {
+        if (current_state_ != ReadingState::file_init)
+        {
+            return std::unexpected{ ErrorCode::reader_file_fail_to_open };
+        }
         if (config_.in_filename.empty())
         {
             return std::unexpected{ ErrorCode::reader_invalid_filename };
@@ -139,7 +151,7 @@ namespace centipede::reader
             entry_buffer_.emplace_back();
         }
         input_file_.open(config_.in_filename, std::ios::binary | std::ios::in);
-        if (!input_file_.is_open() or current_state_ != ReadingState::file_init)
+        if (!input_file_.is_open())
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_open };
         }
@@ -178,12 +190,22 @@ namespace centipede::reader
             {
                 next_data_index = raw_entry_buffer_.first[idx + 1U];
             }
-            if (handle_state(ReadingFrame{ .index = data_index, .next_index = next_data_index, .value = data_value },
-                             entry_buffer_[entrypoint_counter],
-                             current_state_))
+            if (auto result = handle_state(
+                    ReadingFrame{ .index = data_index, .next_index = next_data_index, .value = data_value },
+                    entry_buffer_[entrypoint_counter],
+                    current_state_);
+                !result)
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
+            if (current_state_ == ReadingState::new_entrypoint)
             {
                 entrypoint_counter++;
             }
+        }
+        if (current_state_ != ReadingState::globals)
+        {
+            return std::unexpected{ ErrorCode::reader_file_fail_to_read };
         }
         current_state_ = ReadingState::done;
         size_ = entrypoint_counter;
