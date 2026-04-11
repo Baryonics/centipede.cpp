@@ -80,6 +80,8 @@ namespace centipede::reader
 
         [[nodiscard]] auto get_current_entry() const -> auto { return std::span{ entry_buffer_ }.subspan(size_); }
 
+        constexpr auto get_config() const -> const Config& { return config_; }
+
       private:
         std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
         std::pair<std::vector<uint32_t>, std::vector<float>> raw_entry_buffer_;
