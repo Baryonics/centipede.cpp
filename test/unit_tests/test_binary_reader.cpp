@@ -1,17 +1,13 @@
 #include "centipede/centipede.hpp"
 #include "centipede/reader/binary.hpp"
 #include "centipede/util/error_types.hpp"
-#include "centipede/writer/binary.hpp"
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ios>
-#include <ranges>
 #include <string>
 #include <utility>
 
-// Handwritten binary data -> write by std::ofstream
 using centipede::reader::Binary;
 using Config = centipede::reader::Binary::Config;
 namespace fs = std::filesystem;
