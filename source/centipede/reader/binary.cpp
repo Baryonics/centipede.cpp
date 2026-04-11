@@ -141,14 +141,11 @@ namespace centipede::reader
 
     auto Binary::init() -> EnumError<>
     {
-        if (current_state_ != ReadingState::file_init)
-        {
-            return std::unexpected{ ErrorCode::reader_file_fail_to_open };
-        }
         if (config_.in_filename.empty())
         {
             return std::unexpected{ ErrorCode::reader_invalid_filename };
         }
+        current_state_ = ReadingState::file_init;
         entry_buffer_.reserve(config_.max_bufferpoint_size);
         raw_entry_buffer_.first.reserve(config_.max_bufferpoint_size);
         raw_entry_buffer_.second.reserve(config_.max_bufferpoint_size);
