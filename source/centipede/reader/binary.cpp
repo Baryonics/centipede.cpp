@@ -88,28 +88,27 @@ namespace centipede::reader
                       std::views::chunk_by([](auto current, auto next) -> auto
                                            { return std::get<0>(current) != 0 and std::get<0>(next) != 0; }) |
                       std::views::chunk(4);
-        [[maybe_unused]] auto is_ok =
-            std::ranges::all_of(std::views::zip_transform(
-                                    [&size](auto chunk, EntryPoint<>& entrypoint) -> auto
-                                    {
-                                        // TODO: Check file format
-                                        auto iter = chunk.begin();
-                                        entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                        for (const auto& global : *iter++)
-                                        {
-                                            entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                        }
-                                        entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                        for (const auto& local : *iter++ | std::views::values)
-                                        {
-                                            entrypoint.add_local(local);
-                                        }
-                                        size++;
-                                        return iter == chunk.end();
-                                    },
-                                    chunks,
-                                    entry_buffer_),
-                                std::identity{});
+        auto is_ok = std::ranges::all_of(std::views::zip_transform(
+                                             [&size](auto chunk, EntryPoint<>& entrypoint) -> auto
+                                             {
+                                                 // TODO: Check file format
+                                                 auto iter = chunk.begin();
+                                                 entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                                                 for (const auto& global : *iter++)
+                                                 {
+                                                     entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                                 }
+                                                 entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                                                 for (const auto& local : *iter++ | std::views::values)
+                                                 {
+                                                     entrypoint.add_local(local);
+                                                 }
+                                                 size++;
+                                                 return iter == chunk.end();
+                                             },
+                                             chunks,
+                                             entry_buffer_),
+                                         std::identity{});
         if (not is_ok)
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_read };
