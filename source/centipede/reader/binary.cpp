@@ -23,7 +23,7 @@ namespace centipede::reader
             requires(sizeof(T) == sizeof(uint32_t) and std::is_trivially_copyable_v<T>)
         auto read_from_file(std::ifstream& input_file, T& data) -> EnumError<std::size_t>
         {
-            const auto read_size = sizeof(T);
+            const auto read_size = sizeof(data);
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
             input_file.read(reinterpret_cast<char*>(&data), static_cast<std::streamsize>(read_size));
             // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
@@ -57,13 +57,9 @@ namespace centipede::reader
         {
             return std::unexpected{ ErrorCode::reader_invalid_filename };
         }
-        entry_buffer_.reserve(config_.max_bufferpoint_size);
+        entry_buffer_.resize(config_.max_bufferpoint_size);
         raw_entry_buffer_.first.reserve(config_.max_bufferpoint_size);
         raw_entry_buffer_.second.reserve(config_.max_bufferpoint_size);
-        for ([[maybe_unused]] auto idx : std::views::iota(std::size_t{ 0 }, config_.max_bufferpoint_size))
-        {
-            entry_buffer_.emplace_back();
-        }
         input_file_.open(config_.in_filename, std::ios::binary | std::ios::in);
         if (!input_file_.is_open())
         {
@@ -74,6 +70,11 @@ namespace centipede::reader
 
     auto Binary::read_one_entry() -> EnumError<std::size_t>
     {
+        if (entry_buffer_.empty())
+        {
+            return std::unexpected{ ErrorCode::reader_uninitialized };
+        }
+        reset();
         auto read_size = uint32_t{};
         if (auto result = read_from_file(input_file_, read_size); !result)
         {
@@ -84,6 +85,10 @@ namespace centipede::reader
             return std::unexpected{ result.error() };
         }
         auto size = std::size_t{};
+        if (size > config_.max_bufferpoint_size)
+        {
+            entry_buffer_.resize(size);
+        }
         auto chunks = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
                       std::views::chunk_by([](auto current, auto next) -> auto
                                            { return std::get<0>(current) != 0 and std::get<0>(next) != 0; }) |
