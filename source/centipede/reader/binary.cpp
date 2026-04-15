@@ -2,12 +2,14 @@
 #include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <expected>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <ranges>
 #include <type_traits>
@@ -47,96 +49,6 @@ namespace centipede::reader
             }
             return read_size;
         }
-
-        struct ReadingFrame
-        {
-            uint32_t index{};
-            uint32_t next_index{};
-            float value{};
-        };
-
-        constexpr void handle_measurement(const ReadingFrame& current_frame,
-                                          EntryPoint<>& current_entrypoint,
-                                          ReadingState& current_state)
-        {
-            assert(current_state == ReadingState::measurement);
-            current_entrypoint.set_measurement(current_frame.value);
-            current_state = ReadingState::locals;
-        }
-
-        constexpr void handle_locals(const ReadingFrame& current_frame,
-                                     EntryPoint<>& current_entrypoint,
-                                     ReadingState& current_state)
-        {
-            assert(current_state == ReadingState::locals and current_frame.index != 0);
-            if (current_frame.next_index == 0)
-            {
-                current_state = ReadingState::sigma;
-            }
-            current_entrypoint.add_local(current_frame.value);
-        }
-
-        constexpr void handle_sigma(const ReadingFrame& current_frame,
-                                    EntryPoint<>& current_entrypoint,
-                                    ReadingState& current_state)
-        {
-            assert(current_state == ReadingState::sigma and current_frame.index == 0);
-            current_entrypoint.set_sigma(current_frame.value);
-            current_state = ReadingState::globals;
-        }
-
-        constexpr void handle_globals(const ReadingFrame& current_frame,
-                                      EntryPoint<>& current_entrypoint,
-                                      ReadingState& current_state)
-        {
-            assert(current_state == ReadingState::globals and current_frame.index != 0);
-            if (current_frame.next_index == 0)
-            {
-                current_state = ReadingState::new_entrypoint;
-            }
-            current_entrypoint.add_global(current_frame.index - 1U, current_frame.value);
-        }
-
-        constexpr void handle_done(const ReadingFrame& current_frame, ReadingState& current_state)
-        {
-            assert(current_state == ReadingState::done and current_frame.index != 0);
-            current_state = ReadingState::measurement;
-        }
-
-        constexpr auto handle_state(const ReadingFrame& current_frame,
-                                    EntryPoint<>& current_entrypoint,
-                                    ReadingState& current_state) -> EnumError<>
-        {
-            switch (current_state)
-            {
-                case ReadingState::file_init:
-                    if (current_frame.next_index != 0)
-                    {
-                        return std::unexpected{ ErrorCode::reader_file_fail_to_read };
-                    }
-                    current_state = ReadingState::measurement;
-                    break;
-                case ReadingState::new_entrypoint:
-                    current_state = ReadingState::measurement;
-                    [[fallthrough]];
-                case ReadingState::measurement:
-                    handle_measurement(current_frame, current_entrypoint, current_state);
-                    break;
-                case ReadingState::locals:
-                    handle_locals(current_frame, current_entrypoint, current_state);
-                    break;
-                case ReadingState::sigma:
-                    handle_sigma(current_frame, current_entrypoint, current_state);
-                    break;
-                case ReadingState::globals:
-                    handle_globals(current_frame, current_entrypoint, current_state);
-                    break;
-                case ReadingState::done:
-                    handle_done(current_frame, current_state);
-                    break;
-            }
-            return {};
-        }
     } // namespace
 
     auto Binary::init() -> EnumError<>
@@ -145,7 +57,6 @@ namespace centipede::reader
         {
             return std::unexpected{ ErrorCode::reader_invalid_filename };
         }
-        current_state_ = ReadingState::file_init;
         entry_buffer_.reserve(config_.max_bufferpoint_size);
         raw_entry_buffer_.first.reserve(config_.max_bufferpoint_size);
         raw_entry_buffer_.second.reserve(config_.max_bufferpoint_size);
@@ -163,56 +74,48 @@ namespace centipede::reader
 
     auto Binary::read_one_entry() -> EnumError<std::size_t>
     {
-        if (entry_buffer_.empty() or !raw_entry_buffer_.first.empty() or !raw_entry_buffer_.second.empty() or
-            size_ != 0U)
-        {
-            return std::unexpected{ ErrorCode::reader_uninitialized };
-        }
-        auto entry_size = uint32_t{};
-        if (auto result = read_from_file(input_file_, entry_size); !result)
-        {
-            return std::unexpected(result.error());
-        }
-        if (entry_size > config_.max_bufferpoint_size)
-        {
-            return std::unexpected{ ErrorCode::reader_buffer_overflow };
-        }
-        if (auto result = read_entry_to_buffer(entry_size); !result)
+        auto read_size = uint32_t{};
+        if (auto result = read_from_file(input_file_, read_size); !result)
         {
             return std::unexpected{ result.error() };
         }
-        auto half_entry_size = entry_size / 2U;
-        auto entrypoint_counter = std::size_t{ 0 };
-        for (auto [idx, data_index, data_value] :
-             std::views::zip(std::views::iota(std::size_t{ 0 }, static_cast<std::size_t>(half_entry_size)),
-                             raw_entry_buffer_.first,
-                             raw_entry_buffer_.second))
+        if (auto result = read_entry_to_buffer(read_size); !result)
         {
-            auto next_data_index = uint32_t{};
-            if (idx + 1U < half_entry_size)
-            {
-                next_data_index = raw_entry_buffer_.first[idx + 1U];
-            }
-            if (auto result = handle_state(
-                    ReadingFrame{ .index = data_index, .next_index = next_data_index, .value = data_value },
-                    entry_buffer_[entrypoint_counter],
-                    current_state_);
-                !result)
-            {
-                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
-            }
-            if (current_state_ == ReadingState::new_entrypoint)
-            {
-                entrypoint_counter++;
-            }
+            return std::unexpected{ result.error() };
         }
-        if (current_state_ != ReadingState::globals)
+        auto size = std::size_t{};
+        auto chunks = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
+                      std::views::chunk_by([](auto current, auto next) -> auto
+                                           { return std::get<0>(current) != 0 and std::get<0>(next) != 0; }) |
+                      std::views::chunk(4);
+        [[maybe_unused]] auto is_ok =
+            std::ranges::all_of(std::views::zip_transform(
+                                    [&size](auto chunk, EntryPoint<>& entrypoint) -> auto
+                                    {
+                                        // TODO: Check file format
+                                        auto iter = chunk.begin();
+                                        entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                                        for (const auto& global : *iter++)
+                                        {
+                                            entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                        }
+                                        entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                                        for (const auto& local : *iter++ | std::views::values)
+                                        {
+                                            entrypoint.add_local(local);
+                                        }
+                                        size++;
+                                        return iter == chunk.end();
+                                    },
+                                    chunks,
+                                    entry_buffer_),
+                                std::identity{});
+        if (not is_ok)
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_read };
         }
-        current_state_ = ReadingState::done;
-        size_ = entrypoint_counter;
-        return entry_size + sizeof(entry_size);
+
+        return size;
     }
 
     void Binary::reset()

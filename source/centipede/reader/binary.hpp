@@ -16,17 +16,6 @@
 
 namespace centipede::reader
 {
-    enum class ReadingState : uint8_t
-    {
-        file_init,
-        measurement,
-        locals,
-        sigma,
-        globals,
-        new_entrypoint,
-        done
-    };
-
     /**
      * @class Binary
      * @brief Class for reading binary files.
@@ -70,11 +59,7 @@ namespace centipede::reader
          */
         [[nodiscard]] auto init() -> EnumError<>;
 
-        void close()
-        {
-            current_state_ = ReadingState::file_init;
-            input_file_.close();
-        }
+        void close() { input_file_.close(); }
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
@@ -89,7 +74,6 @@ namespace centipede::reader
         Config config_;            //!< Member variable for the configuration.
         std::ifstream input_file_; //!< Input file handler
         std::size_t size_{};       //!< Number of Entrypoints in the current entry
-        ReadingState current_state_ = ReadingState::file_init;
 
         void reset();
         auto read_entry_to_buffer(uint32_t read_size) -> EnumError<>;
