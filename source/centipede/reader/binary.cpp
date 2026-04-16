@@ -10,6 +10,7 @@
 #include <fstream>
 #include <functional>
 #include <ios>
+#include <iterator>
 #include <ranges>
 #include <type_traits>
 #include <vector>
@@ -88,14 +89,15 @@ namespace centipede::reader
         {
             entry_buffer_.resize(size);
         }
-        auto chunks = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
+        auto zipped = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
                       std::views::chunk_by([](const auto& current, const auto& next) -> auto
-                                           { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; }) |
-                      // chunk is not implemented by libc++
-                      std::views::enumerate |
-                      std::views::chunk_by([](const auto& current, const auto& next) -> auto
-                                           { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
-                      std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
+                                           { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
+
+        auto chunks =
+            std::views::zip(std::views::iota(std::ranges::distance(zipped)), zipped) |
+            std::views::chunk_by([](const auto& current, const auto& next) -> auto // chunk is not implemented in libc++
+                                 { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
+            std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
 
         auto is_ok =
             std::ranges::all_of(std::views::zip(chunks, entry_buffer_) | // zip_transform is not implemented in libc++
