@@ -1,5 +1,4 @@
 #include "binary.hpp"
-#include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <algorithm>
@@ -90,30 +89,36 @@ namespace centipede::reader
             entry_buffer_.resize(size);
         }
         auto chunks = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
-                      std::views::chunk_by([](auto current, auto next) -> auto
-                                           { return std::get<0>(current) != 0 and std::get<0>(next) != 0; }) |
-                      std::views::chunk(4);
-        auto is_ok = std::ranges::all_of(std::views::zip_transform(
-                                             [&size](auto chunk, EntryPoint<>& entrypoint) -> auto
-                                             {
-                                                 // TODO: Check file format
-                                                 auto iter = chunk.begin();
-                                                 entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                                 for (const auto& global : *iter++)
-                                                 {
-                                                     entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                                 }
-                                                 entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                                 for (const auto& local : *iter++ | std::views::values)
-                                                 {
-                                                     entrypoint.add_local(local);
-                                                 }
-                                                 size++;
-                                                 return iter == chunk.end();
-                                             },
-                                             chunks,
-                                             entry_buffer_),
-                                         std::identity{});
+                      std::views::chunk_by([](const auto& current, const auto& next) -> auto
+                                           { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; }) |
+                      // chunk is not implemented by libc++
+                      std::views::enumerate |
+                      std::views::chunk_by([](const auto& current, const auto& next) -> auto
+                                           { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
+                      std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
+
+        auto is_ok =
+            std::ranges::all_of(std::views::zip(chunks, entry_buffer_) | // zip_transform is not implemented in libc++
+                                    std::views::transform(
+                                        [&size](const auto&& packed) -> auto
+                                        {
+                                            // TODO: Check file format
+                                            auto&& [chunk, entrypoint] = packed;
+                                            auto iter = chunk.begin();
+                                            entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                                            for (const auto& global : *iter++)
+                                            {
+                                                entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                            }
+                                            entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                                            for (const auto& local : *iter++ | std::views::values)
+                                            {
+                                                entrypoint.add_local(local);
+                                            }
+                                            size++;
+                                            return iter == chunk.end();
+                                        }),
+                                std::identity{});
         if (not is_ok)
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_read };
