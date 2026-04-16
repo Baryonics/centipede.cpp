@@ -1,4 +1,5 @@
 #include "binary.hpp"
+#include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <algorithm>
@@ -49,6 +50,46 @@ namespace centipede::reader
             }
             return read_size;
         }
+
+        auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output)
+            -> EnumError<std::size_t>
+        {
+            auto size = std::size_t{};
+            auto zipped = std::views::zip(input.first, input.second) | std::views::drop(1) |
+                          std::views::chunk_by([](const auto& current, const auto& next) -> auto
+                                               { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
+            auto chunks = std::views::zip(std::views::iota(std::ranges::distance(zipped)), zipped) |
+                          std::views::chunk_by([](const auto& current, const auto& next) -> auto
+                                               { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
+                          std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
+            auto is_ok =
+                std::ranges::all_of(std::views::zip(chunks, output) |
+                                        std::views::transform(
+                                            [&size](const auto&& packed) -> auto
+                                            {
+                                                // TODO: Check file format
+                                                auto&& [chunk, entrypoint] = packed;
+                                                auto iter = chunk.begin();
+                                                entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                                                for (const auto& global : *iter++)
+                                                {
+                                                    entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                                }
+                                                entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                                                for (const auto& local : *iter++ | std::views::values)
+                                                {
+                                                    entrypoint.add_local(local);
+                                                }
+                                                size++;
+                                                return iter == chunk.end();
+                                            }),
+                                    std::identity{});
+            if (not is_ok)
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
+            return size;
+        }
     } // namespace
 
     auto Binary::init() -> EnumError<>
@@ -84,49 +125,16 @@ namespace centipede::reader
         {
             return std::unexpected{ result.error() };
         }
-        auto size = std::size_t{};
-        if (size > config_.max_bufferpoint_size)
+        if (read_size > config_.max_bufferpoint_size)
         {
-            entry_buffer_.resize(size);
+            entry_buffer_.resize(read_size);
         }
-        auto zipped = std::views::zip(raw_entry_buffer_.first, raw_entry_buffer_.second) | std::views::drop(1) |
-                      std::views::chunk_by([](const auto& current, const auto& next) -> auto
-                                           { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
-
-        auto chunks =
-            std::views::zip(std::views::iota(std::ranges::distance(zipped)), zipped) |
-            std::views::chunk_by([](const auto& current, const auto& next) -> auto // chunk is not implemented in libc++
-                                 { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
-            std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
-
-        auto is_ok =
-            std::ranges::all_of(std::views::zip(chunks, entry_buffer_) | // zip_transform is not implemented in libc++
-                                    std::views::transform(
-                                        [&size](const auto&& packed) -> auto
-                                        {
-                                            // TODO: Check file format
-                                            auto&& [chunk, entrypoint] = packed;
-                                            auto iter = chunk.begin();
-                                            entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                            for (const auto& global : *iter++)
-                                            {
-                                                entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                            }
-                                            entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                            for (const auto& local : *iter++ | std::views::values)
-                                            {
-                                                entrypoint.add_local(local);
-                                            }
-                                            size++;
-                                            return iter == chunk.end();
-                                        }),
-                                std::identity{});
-        if (not is_ok)
+        auto size = parse_entry_points(raw_entry_buffer_, entry_buffer_);
+        if (not size)
         {
-            return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            return std::unexpected{ size.error() };
         }
-
-        return size;
+        return size.value();
     }
 
     void Binary::reset()

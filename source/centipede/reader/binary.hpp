@@ -38,6 +38,8 @@ namespace centipede::reader
             std::string in_filename;                                     //!< Input binary filename.
             uint32_t max_bufferpoint_size = common::DEFAULT_BUFFER_SIZE; //!< maximum bufferpoint for an entry.
         };
+        using RawBufferType = std::pair<std::vector<uint32_t>, std::vector<float>>;
+        using BufferType = std::vector<EntryPoint<>>;
 
         /**
          * @brief Constructor takes an argument for  the configuration.
@@ -68,9 +70,8 @@ namespace centipede::reader
         constexpr auto get_config() const -> const Config& { return config_; }
 
       private:
-        std::vector<EntryPoint<>> entry_buffer_; //!< A vector containing all entrypoints of the current entry.
-        std::pair<std::vector<uint32_t>, std::vector<float>> raw_entry_buffer_;
-        std::pair<std::vector<uint32_t>, std::vector<float>> entrypoint_buffer_;
+        BufferType entry_buffer_; //!< A vector containing all entrypoints of the current entry.
+        RawBufferType raw_entry_buffer_;
         Config config_;            //!< Member variable for the configuration.
         std::ifstream input_file_; //!< Input file handler
         std::size_t size_{};       //!< Number of Entrypoints in the current entry
