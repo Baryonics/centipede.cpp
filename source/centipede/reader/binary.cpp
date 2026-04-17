@@ -77,6 +77,10 @@ namespace centipede::reader
                         {
                             entrypoint.add_global(std::get<0>(global), std::get<1>(global));
                         }
+                        if (std::ranges::distance(*iter) != 1U)
+                        {
+                            return false;
+                        }
                         entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
                         for (const auto& local : *iter++ | std::views::values)
                         {
