@@ -11,6 +11,7 @@
 #include <functional>
 #include <ios>
 #include <iterator>
+#include <print>
 #include <ranges>
 #include <type_traits>
 #include <vector>
@@ -54,36 +55,41 @@ namespace centipede::reader
             -> EnumError<std::size_t>
         {
             // TODO: check file begin
+            constexpr auto chunk_size{ 4U };
             auto size = std::size_t{};
             auto zipped = std::views::zip(input.first, input.second) | std::views::drop(1) |
                           std::views::chunk_by([](const auto& current, const auto& next) -> auto
                                                { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
-            auto chunks = std::views::zip(std::views::iota(std::ranges::distance(zipped)), zipped) |
-                          std::views::chunk_by([](const auto& current, const auto& next) -> auto
-                                               { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
-                          std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
-            auto is_ok =
-                std::ranges::all_of(std::views::zip_transform(
-                                        [&size](const auto&& chunk, auto&& entrypoint) -> auto
-                                        {
-                                            // TODO: Check file format
-                                            auto iter = chunk.begin();
-                                            entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                            for (const auto& global : *iter++)
-                                            {
-                                                entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                            }
-                                            entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                            for (const auto& local : *iter++ | std::views::values)
-                                            {
-                                                entrypoint.add_local(local);
-                                            }
-                                            size++;
-                                            return iter == chunk.end();
-                                        },
-                                        chunks,
-                                        output),
-                                    std::identity{});
+            auto chunks =
+                std::views::zip(std::views::iota(std::ranges::distance(zipped)), zipped) |
+                std::views::chunk_by([](const auto& current, const auto& next) -> auto
+                                     { return std::get<0>(current) / chunk_size == std::get<0>(next) / chunk_size; }) |
+                std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
+            auto is_ok = std::ranges::all_of(
+                std::views::zip_transform(
+                    [&size](const auto&& chunk, auto&& entrypoint) -> auto
+                    {
+                        if (std::ranges::distance(chunk) != chunk_size or std::ranges::distance(*chunk.begin()) != 1U)
+                        {
+                            return false;
+                        }
+                        auto iter = chunk.begin();
+                        entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                        for (const auto& global : *iter++)
+                        {
+                            entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                        }
+                        entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                        for (const auto& local : *iter++ | std::views::values)
+                        {
+                            entrypoint.add_local(local);
+                        }
+                        size++;
+                        return iter == chunk.end();
+                    },
+                    chunks,
+                    output),
+                std::identity{});
             if (not is_ok)
             {
                 return std::unexpected{ ErrorCode::reader_file_fail_to_read };
