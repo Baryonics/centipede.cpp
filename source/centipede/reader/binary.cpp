@@ -122,6 +122,7 @@ namespace centipede::reader
 
     auto Binary::read_one_entry() -> EnumError<std::size_t>
     {
+        // does the CI work now? Lets give it a try!
         if (entry_buffer_.empty())
         {
             return std::unexpected{ ErrorCode::reader_uninitialized };
