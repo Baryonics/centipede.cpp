@@ -6,22 +6,11 @@
 #include <gtest/gtest.h>
 #include <ios>
 #include <string>
-#include <utility>
 
 using centipede::reader::Binary;
 using Config = centipede::reader::Binary::Config;
 namespace fs = std::filesystem;
 
-namespace
-{
-    const auto valid_meas = 1.F;
-    const auto valid_sigma = 1.F;
-    const auto valid_entry_point = centipede::EntryPoint<3, 2>{}
-                                       .set_locals(1.F, 2.F, 3.F)
-                                       .set_globals(std::pair{ 10U, 2.F }, std::pair{ 11U, 3.F })
-                                       .set_measurement(valid_meas)
-                                       .set_sigma(valid_sigma);
-} // namespace
 namespace centipede::test
 {
 
@@ -58,4 +47,16 @@ namespace centipede::test
         EXPECT_TRUE(not error.has_value());
         EXPECT_EQ(error.error(), ErrorCode::reader_file_fail_to_open);
     }
+
+    namespace
+    {
+        // NOLINTBEGIN
+        // (cppcoreguidelines-avoid-magic-numbers)
+        auto valid_measurement = float{ 1. };
+        auto valid_sigma = float{ 1. };
+        auto valid_locals_data = Binary::RawBufferType{ { 1, 2, 3 }, { 1.F, 2.F, 3.F } };
+        auto valid_globals_data = Binary::RawBufferType{ { 3, 4, 5 }, { 3.F, 4.F, 5.F } };
+        // NOLINTEND
+        // (cppcoreguidelines-avoid-magic-numbers)
+    } // namespace
 } // namespace centipede::test
