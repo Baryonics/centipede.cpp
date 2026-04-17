@@ -11,7 +11,6 @@
 #include <functional>
 #include <ios>
 #include <iterator>
-#include <print>
 #include <ranges>
 #include <type_traits>
 #include <vector>
@@ -51,13 +50,12 @@ namespace centipede::reader
             return read_size;
         }
 
-        auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output)
+        auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output, const bool skip_first)
             -> EnumError<std::size_t>
         {
-            // TODO: check file begin
             constexpr auto chunk_size{ 4U };
             auto size = std::size_t{};
-            auto zipped = std::views::zip(input.first, input.second) | std::views::drop(1) |
+            auto zipped = std::views::zip(input.first, input.second) | std::views::drop(skip_first) |
                           std::views::chunk_by([](const auto& current, const auto& next) -> auto
                                                { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
             auto chunks =
@@ -112,6 +110,7 @@ namespace centipede::reader
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_open };
         }
+        first_read_ = true;
         return {};
     }
 
@@ -135,11 +134,12 @@ namespace centipede::reader
         {
             entry_buffer_.resize(read_size);
         }
-        auto size = parse_entry_points(raw_entry_buffer_, entry_buffer_);
+        auto size = parse_entry_points(raw_entry_buffer_, entry_buffer_, first_read_);
         if (not size)
         {
             return std::unexpected{ size.error() };
         }
+        first_read_ = false;
         return size.value();
     }
 
