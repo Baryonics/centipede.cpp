@@ -1,5 +1,4 @@
 #include "binary.hpp"
-#include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <algorithm>
@@ -54,6 +53,7 @@ namespace centipede::reader
         auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output)
             -> EnumError<std::size_t>
         {
+            // TODO: check file begin
             auto size = std::size_t{};
             auto zipped = std::views::zip(input.first, input.second) | std::views::drop(1) |
                           std::views::chunk_by([](const auto& current, const auto& next) -> auto
@@ -63,26 +63,26 @@ namespace centipede::reader
                                                { return std::get<0>(current) / 4U == std::get<0>(next) / 4U; }) |
                           std::views::transform([](auto&& chunk) -> auto { return chunk | std::views::values; });
             auto is_ok =
-                std::ranges::all_of(std::views::zip(chunks, output) |
-                                        std::views::transform(
-                                            [&size](const auto&& packed) -> auto
+                std::ranges::all_of(std::views::zip_transform(
+                                        [&size](const auto&& chunk, auto&& entrypoint) -> auto
+                                        {
+                                            // TODO: Check file format
+                                            auto iter = chunk.begin();
+                                            entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
+                                            for (const auto& global : *iter++)
                                             {
-                                                // TODO: Check file format
-                                                auto&& [chunk, entrypoint] = packed;
-                                                auto iter = chunk.begin();
-                                                entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                                for (const auto& global : *iter++)
-                                                {
-                                                    entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                                }
-                                                entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                                for (const auto& local : *iter++ | std::views::values)
-                                                {
-                                                    entrypoint.add_local(local);
-                                                }
-                                                size++;
-                                                return iter == chunk.end();
-                                            }),
+                                                entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                            }
+                                            entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
+                                            for (const auto& local : *iter++ | std::views::values)
+                                            {
+                                                entrypoint.add_local(local);
+                                            }
+                                            size++;
+                                            return iter == chunk.end();
+                                        },
+                                        chunks,
+                                        output),
                                     std::identity{});
             if (not is_ok)
             {
