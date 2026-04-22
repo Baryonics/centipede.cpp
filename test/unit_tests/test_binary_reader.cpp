@@ -1,11 +1,17 @@
 #include "centipede/centipede.hpp"
 #include "centipede/reader/binary.hpp"
 #include "centipede/util/error_types.hpp"
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ios>
+#include <iterator>
+#include <ranges>
 #include <string>
+#include <utility>
+#include <vector>
 
 using centipede::reader::Binary;
 using Config = centipede::reader::Binary::Config;
@@ -58,5 +64,60 @@ namespace centipede::test
         auto valid_globals_data = Binary::RawBufferType{ { 3, 4, 5 }, { 3.F, 4.F, 5.F } };
         // NOLINTEND
         // (cppcoreguidelines-avoid-magic-numbers)
+
+        auto fill_buffer(Binary::RawBufferType& output,
+                         const float measurement,
+                         const Binary::RawBufferType& locals_data,
+                         const float sigma,
+                         const Binary::RawBufferType& globals_data)
+        {
+            output.first.push_back(uint32_t{ 0 });
+            output.second.push_back(measurement);
+            std::ranges::copy(locals_data.first, std::back_inserter(output.first));
+            std::ranges::copy(locals_data.second, std::back_inserter(output.second));
+
+            output.first.push_back(uint32_t{ 0 });
+            output.second.push_back(sigma);
+            std::ranges::copy(globals_data.first, std::back_inserter(output.first));
+            std::ranges::copy(globals_data.second, std::back_inserter(output.second));
+        }
+
+        auto write_to_file(std::ofstream& file, const Binary::RawBufferType& buffer)
+        {
+            // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
+            file.write(reinterpret_cast<const char*>(buffer.second.data()), buffer.second.size() * sizeof(float));
+            file.write(reinterpret_cast<const char*>(buffer.first.data()), buffer.first.size() * sizeof(uint32_t));
+            // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
+        }
     } // namespace
+
+    // NOLINTBEGIN(readability-function-cognitive-complexity)
+    TEST(reader, valid_single_entry)
+    {
+        auto file_name = std::string{ "valid_single_entry.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        write_to_file(file, output_buffer);
+        file.close();
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_TRUE(read_err);
+        auto read_result = reader.get_current_entry();
+        for (const auto& entrypoint : read_result)
+        {
+            EXPECT_EQ(valid_locals_data.second, entrypoint.get_locals());
+            auto expected_globals = std::views::zip_transform([](const auto& index, const auto& value) -> auto
+                                                              { return std::pair{ index, value }; },
+                                                              valid_globals_data.first,
+                                                              valid_globals_data.second) |
+                                    std::ranges::to<std::vector>();
+            EXPECT_EQ(expected_globals, entrypoint.get_globals());
+            EXPECT_EQ(entrypoint.get_measurement(), valid_measurement);
+            EXPECT_EQ(entrypoint.get_sigma(), valid_sigma);
+        }
+        // NOLINTEND(readability-function-cognitive-complexity)
+    }
 } // namespace centipede::test
