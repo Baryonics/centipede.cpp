@@ -91,12 +91,13 @@ namespace centipede::test
         }
     } // namespace
 
-    // NOLINTBEGIN(readability-function-cognitive-complexity)
     TEST(reader, valid_single_entry)
     {
+        // NOLINTBEGIN(readability-function-cognitive-complexity)
         auto file_name = std::string{ "valid_single_entry.bin" };
         auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
         auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
         fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
         write_to_file(file, output_buffer);
         file.close();
@@ -118,6 +119,64 @@ namespace centipede::test
             EXPECT_EQ(entrypoint.get_measurement(), valid_measurement);
             EXPECT_EQ(entrypoint.get_sigma(), valid_sigma);
         }
+        reader.close();
         // NOLINTEND(readability-function-cognitive-complexity)
     }
+
+    // TEST(reader, valid_multi_entry) {}
+
+    TEST(reader, invalid_file_begin)
+    {
+        auto file_name = std::string{ "reader_invalid_file_begin.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 1 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        write_to_file(file, output_buffer);
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        reader.close();
+    }
+
+    TEST(reader, invalid_locals)
+    {
+
+        auto file_name = std::string{ "reader_invalid_locals.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        auto invalid_locals_data = valid_locals_data;
+        invalid_locals_data.first[1] = 0U;
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        write_to_file(file, output_buffer);
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        reader.close();
+    }
+
+    TEST(reader, invalid_globals)
+    {
+
+        auto file_name = std::string{ "reader_invalid_globals.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        auto invalid_globals_data = valid_globals_data;
+        invalid_globals_data.first[1] = 0U;
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        write_to_file(file, output_buffer);
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        reader.close();
+    }
+
 } // namespace centipede::test
