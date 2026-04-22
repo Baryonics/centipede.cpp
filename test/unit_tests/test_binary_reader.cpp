@@ -167,7 +167,7 @@ namespace centipede::test
         auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
         auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
         auto invalid_globals_data = valid_globals_data;
-        invalid_globals_data.first[1] = 0U;
+        invalid_globals_data.first.at(1) = 0U;
         fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
         write_to_file(file, output_buffer);
         auto reader = Binary{ Config{ .in_filename = file_name } };
