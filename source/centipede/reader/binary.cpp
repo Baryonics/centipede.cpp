@@ -40,7 +40,7 @@ namespace centipede::reader
             requires(sizeof(T) == sizeof(uint32_t) and std::is_trivially_copyable_v<T>)
         auto read_from_file(std::ifstream& input_file, std::vector<T>& data) -> EnumError<std::size_t>
         {
-            assert(!data.empty());
+            assert(data.empty());
             const auto read_size = data.size() * sizeof(T);
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
             input_file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(read_size));
@@ -122,7 +122,6 @@ namespace centipede::reader
 
     auto Binary::read_one_entry() -> EnumError<std::size_t>
     {
-        // does the CI work now? Lets give it a try!
         if (entry_buffer_.empty())
         {
             return std::unexpected{ ErrorCode::reader_uninitialized };
@@ -146,6 +145,7 @@ namespace centipede::reader
         {
             return std::unexpected{ size.error() };
         }
+        size_ = size.value();
         first_read_ = false;
         return size.value();
     }
