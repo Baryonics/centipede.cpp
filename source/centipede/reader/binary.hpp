@@ -65,7 +65,7 @@ namespace centipede::reader
 
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
-        [[nodiscard]] auto get_current_entry() const -> auto { return std::span{ entry_buffer_ }.subspan(size_); }
+        [[nodiscard]] auto get_current_entry() const -> auto { return std::span{ entry_buffer_.begin(), size_ }; }
 
         constexpr auto get_config() const -> const Config& { return config_; }
 
