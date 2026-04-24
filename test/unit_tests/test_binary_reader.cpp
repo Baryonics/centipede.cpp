@@ -199,4 +199,21 @@ namespace centipede::test
         auto read_result = reader.get_current_entry();
     }
 
+    TEST(reader, invalid_sigma)
+    {
+
+        auto file_name = std::string{ "invalid_sigma.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        output_buffer.first.at(valid_locals_data.first.size() + 2U) = 1U;
+        write_to_file(file, output_buffer);
+        file.close();
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        auto read_result = reader.get_current_entry();
+    }
 } // namespace centipede::test
