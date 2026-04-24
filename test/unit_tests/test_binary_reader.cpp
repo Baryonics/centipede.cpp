@@ -73,18 +73,20 @@ namespace centipede::test
         {
             output.first.push_back(uint32_t{ 0 });
             output.second.push_back(measurement);
-            std::ranges::copy(locals_data.first, std::back_inserter(output.first));
-            std::ranges::copy(locals_data.second, std::back_inserter(output.second));
+            std::ranges::copy(globals_data.first, std::back_inserter(output.first));
+            std::ranges::copy(globals_data.second, std::back_inserter(output.second));
 
             output.first.push_back(uint32_t{ 0 });
             output.second.push_back(sigma);
-            std::ranges::copy(globals_data.first, std::back_inserter(output.first));
-            std::ranges::copy(globals_data.second, std::back_inserter(output.second));
+            std::ranges::copy(locals_data.first, std::back_inserter(output.first));
+            std::ranges::copy(locals_data.second, std::back_inserter(output.second));
         }
 
         auto write_to_file(std::ofstream& file, const Binary::RawBufferType& buffer)
         {
+            auto entry_size = static_cast<uint32_t>(buffer.first.size() + buffer.second.size());
             // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
+            file.write(reinterpret_cast<const char*>(&entry_size), sizeof(entry_size));
             file.write(reinterpret_cast<const char*>(buffer.second.data()), buffer.second.size() * sizeof(float));
             file.write(reinterpret_cast<const char*>(buffer.first.data()), buffer.first.size() * sizeof(uint32_t));
             // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
@@ -177,6 +179,24 @@ namespace centipede::test
         EXPECT_FALSE(read_err);
         EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
         reader.close();
+    }
+
+    TEST(reader, invalid_measurement)
+    {
+
+        auto file_name = std::string{ "invalid_measurement.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        output_buffer.first.at(1) = 1U;
+        write_to_file(file, output_buffer);
+        file.close();
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        auto read_result = reader.get_current_entry();
     }
 
 } // namespace centipede::test
