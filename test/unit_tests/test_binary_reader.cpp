@@ -196,7 +196,7 @@ namespace centipede::test
         EXPECT_TRUE(init_err);
         auto read_err = reader.read_one_entry();
         EXPECT_FALSE(read_err);
-        auto read_result = reader.get_current_entry();
+        [[maybe_unused]] auto read_result = reader.get_current_entry();
         reader.close();
     }
 
@@ -215,7 +215,7 @@ namespace centipede::test
         EXPECT_TRUE(init_err);
         auto read_err = reader.read_one_entry();
         EXPECT_FALSE(read_err);
-        auto read_result = reader.get_current_entry();
+        [[maybe_unused]] auto read_result = reader.get_current_entry();
         reader.close();
     }
 } // namespace centipede::test
