@@ -60,40 +60,54 @@ namespace centipede::reader
             auto zipped = svs::zip(input.first, input.second) | svs::drop(skip_first) |
                           svs::chunk_by([](const auto& current, const auto& next) -> auto
                                         { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
+            // TODO: Use chunk_view after libc++ supports it.
             auto chunks =
                 svs::zip(svs::iota(0), zipped) |
                 svs::chunk_by([](const auto& current, const auto& next) -> auto
                               { return std::get<0>(current) / chunk_size == std::get<0>(next) / chunk_size; }) |
                 svs::transform([](auto&& chunk) -> auto { return chunk | svs::values; });
-            auto is_ok =
-                srs::all_of(svs::zip_transform(
-                                [&size](const auto&& chunk, auto&& entrypoint) -> auto
-                                {
-                                    if (srs::distance(chunk) != chunk_size or srs::distance(*chunk.begin()) != 1U)
-                                    {
-                                        return false;
-                                    }
-                                    auto iter = chunk.begin();
-                                    entrypoint.set_measurement(std::get<1>(*(*iter++).begin()));
-                                    for (const auto& global : *iter++)
-                                    {
-                                        entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                    }
-                                    if (srs::distance(*iter) != 1U)
-                                    {
-                                        return false;
-                                    }
-                                    entrypoint.set_sigma(std::get<1>(*(*iter++).begin()));
-                                    for (const auto& local : *iter++ | svs::values)
-                                    {
-                                        entrypoint.add_local(local);
-                                    }
-                                    size++;
-                                    return iter == chunk.end();
-                                },
-                                chunks,
-                                output),
-                            std::identity{});
+            auto is_ok = srs::all_of(svs::zip_transform(
+                                         [&size](auto&& chunk, auto&& entrypoint) -> bool
+                                         {
+                                             auto iter = chunk.begin();
+                                             auto end = chunk.end();
+                                             if (iter == end or srs::size(*iter) != 1U)
+                                             {
+                                                 return false;
+                                             }
+                                             entrypoint.set_measurement(std::get<1>(*(*iter).begin()));
+                                             if (++iter == end)
+                                             {
+                                                 return false;
+                                             }
+                                             for (const auto& global : *iter)
+                                             {
+                                                 entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                             }
+                                             if (++iter == end)
+                                             {
+                                                 return false;
+                                             }
+                                             if (srs::size(*iter) != 1U)
+                                             {
+                                                 return false;
+                                             }
+                                             entrypoint.set_sigma(std::get<1>(*(*iter).begin()));
+                                             if (++iter == end)
+                                             {
+                                                 return false;
+                                             }
+                                             for (const auto& local : *iter | svs::values)
+                                             {
+                                                 entrypoint.add_local(local);
+                                             }
+                                             ++iter;
+                                             ++size;
+                                             return iter == chunk.end();
+                                         },
+                                         chunks,
+                                         output),
+                                     std::identity{});
             if (not is_ok)
             {
                 return std::unexpected{ ErrorCode::reader_file_fail_to_read };
