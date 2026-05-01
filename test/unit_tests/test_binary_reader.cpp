@@ -197,6 +197,7 @@ namespace centipede::test
         auto read_err = reader.read_one_entry();
         EXPECT_FALSE(read_err);
         auto read_result = reader.get_current_entry();
+        reader.close();
     }
 
     TEST(reader, invalid_sigma)
@@ -215,5 +216,6 @@ namespace centipede::test
         auto read_err = reader.read_one_entry();
         EXPECT_FALSE(read_err);
         auto read_result = reader.get_current_entry();
+        reader.close();
     }
 } // namespace centipede::test
