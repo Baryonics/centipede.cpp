@@ -77,7 +77,6 @@ namespace centipede::reader
         Config config_;                  //!< Member variable for the configuration.
         std::ifstream input_file_;       //!< Input file handler
         std::size_t size_{};             //!< Number of Entrypoints in the current entry
-        bool first_read_{ true };        //!< True until the first read operation on the current file.
         bool end_of_file_{ false };      //!< Indicates if end of file is reached. Gets updated on read.
 
         void reset();
