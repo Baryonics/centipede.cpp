@@ -2,6 +2,7 @@
 #include "centipede/reader/binary.hpp"
 #include "centipede/util/error_types.hpp"
 #include <algorithm>
+#include <csignal>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -342,7 +343,7 @@ namespace centipede::test
 
     TEST(reader, end_of_file)
     {
-        auto file_name = std::string{ "end_of_file.bin" };
+        auto file_name = std::string{ "reader_end_of_file.bin" };
         auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
         auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
         fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
@@ -358,5 +359,26 @@ namespace centipede::test
         EXPECT_TRUE(read_err);
         EXPECT_TRUE(reader.is_end_of_file());
         EXPECT_EQ(read_err.value(), 0U);
+    }
+
+    TEST(reader, incomplete_header_error)
+    {
+        auto file_name = std::string{ "reader_incomplete_header_error.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+
+        constexpr auto invalid_header = char{ 42 };
+        file.write(&invalid_header, 1);
+        file.close();
+
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+
+        auto init_err = reader.init();
+        ASSERT_TRUE(init_err);
+
+        auto read_err = reader.read_one_entry();
+        ASSERT_FALSE(read_err);
+        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+
+        reader.close();
     }
 } // namespace centipede::test
