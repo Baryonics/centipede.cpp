@@ -52,16 +52,16 @@ namespace centipede::reader
             return read_size;
         }
 
-        auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output, const bool skip_first)
+        auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output)
             -> EnumError<std::size_t>
         {
-            if (skip_first and input.first.at(0) != 0U)
+            if (input.first.at(0) != 0U)
             {
                 return std::unexpected{ ErrorCode::reader_file_fail_to_read };
             }
             constexpr auto chunk_size{ 4 };
             auto size = std::size_t{};
-            auto zipped = svs::zip(input.first, input.second) | svs::drop(skip_first) |
+            auto zipped = svs::zip(input.first, input.second) | svs::drop(1) |
                           svs::chunk_by([](const auto& current, const auto& next) -> auto
                                         { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
             if (zipped.begin() == zipped.end())
@@ -138,7 +138,6 @@ namespace centipede::reader
             return std::unexpected{ ErrorCode::reader_file_fail_to_open };
         }
         end_of_file_ = false;
-        first_read_ = true;
         return {};
     }
 
@@ -167,13 +166,12 @@ namespace centipede::reader
         {
             entry_buffer_.resize(read_size);
         }
-        auto size = parse_entry_points(raw_entry_buffer_, entry_buffer_, first_read_);
+        auto size = parse_entry_points(raw_entry_buffer_, entry_buffer_);
         if (not size)
         {
             return std::unexpected{ size.error() };
         }
         size_ = size.value();
-        first_read_ = false;
         return size.value();
     }
 
