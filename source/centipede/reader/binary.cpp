@@ -60,6 +60,10 @@ namespace centipede::reader
             auto zipped = svs::zip(input.first, input.second) | svs::drop(skip_first) |
                           svs::chunk_by([](const auto& current, const auto& next) -> auto
                                         { return std::get<0>(current) != 0U and std::get<0>(next) != 0U; });
+            if (zipped.begin() == zipped.end())
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
             // TODO: Use chunk_view after libc++ supports it.
             auto chunks =
                 svs::zip(svs::iota(0), zipped) |
@@ -71,7 +75,7 @@ namespace centipede::reader
                                          {
                                              auto iter = chunk.begin();
                                              auto end = chunk.end();
-                                             if (iter == end or srs::size(*iter) != 1U)
+                                             if (srs::size(*iter) != 1U)
                                              {
                                                  return false;
                                              }
@@ -97,11 +101,10 @@ namespace centipede::reader
                                              {
                                                  return false;
                                              }
-                                             for (const auto& local : *iter | svs::values)
+                                             for (const auto& local : *(iter++) | svs::values)
                                              {
                                                  entrypoint.add_local(local);
                                              }
-                                             ++iter;
                                              ++size;
                                              return iter == chunk.end();
                                          },
