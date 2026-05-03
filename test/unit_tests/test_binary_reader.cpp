@@ -223,7 +223,7 @@ namespace centipede::test
         reader.close();
     }
 
-    TEST(reader, invalid_measurement)
+    TEST(reader, invalid_measurement_chunk)
     {
 
         auto file_name = std::string{ "invalid_measurement.bin" };
@@ -242,14 +242,29 @@ namespace centipede::test
         reader.close();
     }
 
-    TEST(reader, invalid_sigma)
+    TEST(reader, invalid_sigma_chunk)
     {
-
         auto file_name = std::string{ "invalid_sigma.bin" };
         auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
         auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
-        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
-        output_buffer.first.at(valid_locals_data.first.size() + 2U) = 1U;
+        // NOLINTBEGIN
+        // (cppcoreguidelines-avoid-magic-numbers)
+        output_buffer.first.push_back(uint32_t{ 0 });
+        output_buffer.second.push_back(float{ 1 });
+
+        output_buffer.first.push_back(uint32_t{ 0 });
+        output_buffer.second.push_back(float{ 2 });
+
+        output_buffer.first.push_back(uint32_t{ 1 });
+        output_buffer.second.push_back(float{ 3 });
+
+        output_buffer.first.push_back(uint32_t{ 2 });
+        output_buffer.second.push_back(float{ 4 });
+
+        output_buffer.first.push_back(uint32_t{ 0 });
+        output_buffer.second.push_back(float{ 5 });
+        // NOLINTEND
+        // (cppcoreguidelines-avoid-magic-numbers)
         write_to_file(file, output_buffer);
         file.close();
         auto reader = Binary{ Config{ .in_filename = file_name } };
