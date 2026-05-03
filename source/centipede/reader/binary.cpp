@@ -55,6 +55,10 @@ namespace centipede::reader
         auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output, const bool skip_first)
             -> EnumError<std::size_t>
         {
+            if (skip_first and input.first.at(0) != 0U)
+            {
+                return std::unexpected{ ErrorCode::reader_file_fail_to_read };
+            }
             constexpr auto chunk_size{ 4 };
             auto size = std::size_t{};
             auto zipped = svs::zip(input.first, input.second) | svs::drop(skip_first) |
@@ -133,6 +137,7 @@ namespace centipede::reader
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_open };
         }
+        end_of_file_ = false;
         first_read_ = true;
         return {};
     }
@@ -147,6 +152,11 @@ namespace centipede::reader
         auto read_size = uint32_t{};
         if (auto result = read_from_file(input_file_, read_size); !result)
         {
+            if (input_file_.eof() and input_file_.gcount() == 0)
+            {
+                end_of_file_ = true;
+                return 0U;
+            }
             return std::unexpected{ result.error() };
         }
         if (auto result = read_entry_to_buffer(read_size); !result)

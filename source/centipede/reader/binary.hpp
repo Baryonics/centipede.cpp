@@ -69,13 +69,16 @@ namespace centipede::reader
 
         constexpr auto get_config() const -> const Config& { return config_; }
 
+        auto is_end_of_file() const -> bool { return end_of_file_; }
+
       private:
-        BufferType entry_buffer_; //!< A vector containing all entrypoints of the current entry.
-        RawBufferType raw_entry_buffer_;
-        Config config_;            //!< Member variable for the configuration.
-        std::ifstream input_file_; //!< Input file handler
-        std::size_t size_{};       //!< Number of Entrypoints in the current entry
-        bool first_read_{ true };  //!< True until the first read operation on the current file.
+        BufferType entry_buffer_;        //!< A vector containing all entrypoints of the current entry.
+        RawBufferType raw_entry_buffer_; //!< A buffer to store raw data coming from file stream.
+        Config config_;                  //!< Member variable for the configuration.
+        std::ifstream input_file_;       //!< Input file handler
+        std::size_t size_{};             //!< Number of Entrypoints in the current entry
+        bool first_read_{ true };        //!< True until the first read operation on the current file.
+        bool end_of_file_{ false };      //!< Indicates if end of file is reached. Gets updated on read.
 
         void reset();
         auto read_entry_to_buffer(uint32_t read_size) -> EnumError<>;
