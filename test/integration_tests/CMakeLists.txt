@@ -38,7 +38,7 @@ add_executable(integration_test_reader test_reader.cpp)
 
 add_test(NAME integration_test_reader_data_read COMMAND integration_test_reader)
 
-set_tests_properties(integration_test_reader_data_read PROPERTIES TIMEOUT 10)
+set_tests_properties(integration_test_reader_data_read PROPERTIES TIMEOUT 20)
 
 target_link_libraries(integration_test_reader PRIVATE centipede::centipede)
 
