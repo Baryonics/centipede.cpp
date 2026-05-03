@@ -42,6 +42,7 @@ set_tests_properties(integration_test_reader_data_read PROPERTIES TIMEOUT 10)
 
 target_link_libraries(integration_test_reader PRIVATE centipede::centipede)
 
+target_compile_options(integration_test_reader PRIVATE ${COMPILE_OPTIONS})
 
 set_tests_properties(
     integration_test_reader_data_read
