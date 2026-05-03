@@ -2,7 +2,6 @@
 #include "centipede/reader/binary.hpp"
 #include "centipede/util/error_types.hpp"
 #include <algorithm>
-#include <csignal>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
