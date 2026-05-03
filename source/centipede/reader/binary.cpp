@@ -88,11 +88,11 @@ namespace centipede::reader
                                              {
                                                  entrypoint.add_global(std::get<0>(global), std::get<1>(global));
                                              }
-                                             if (++iter == end)
+                                             if (srs::size(*iter) != 1U)
                                              {
                                                  return false;
                                              }
-                                             if (srs::size(*iter) != 1U)
+                                             if (++iter == end)
                                              {
                                                  return false;
                                              }
