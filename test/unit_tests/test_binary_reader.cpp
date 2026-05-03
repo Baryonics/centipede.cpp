@@ -7,6 +7,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ios>
+#include <istream>
 #include <iterator>
 #include <ranges>
 #include <string>
@@ -52,6 +53,25 @@ namespace centipede::test
         auto error = reader.init();
         EXPECT_TRUE(not error.has_value());
         EXPECT_EQ(error.error(), ErrorCode::reader_file_fail_to_open);
+    }
+
+    TEST(reader, file_invalid_size)
+    {
+        auto file_name = std::string{ "file_invalid_size.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        constexpr auto declared_entry_size = uint32_t{ 2 };
+        constexpr auto dummy_data = uint32_t{ 1 };
+        // NOLINTBEGIN (cppcoreguidelines-pro-type-reinterpret-cast)
+        file.write(reinterpret_cast<const char*>(&declared_entry_size), sizeof(declared_entry_size));
+        file.write(reinterpret_cast<const char*>(&dummy_data), sizeof(dummy_data));
+        // NOLINTEND (cppcoreguidelines-pro-type-reinterpret-cast)
+        file.close();
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_FALSE(read_err);
+        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
     }
 
     namespace
