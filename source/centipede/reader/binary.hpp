@@ -67,9 +67,11 @@ namespace centipede::reader
 
         [[nodiscard]] auto get_current_entry() const -> auto { return std::span{ entry_buffer_.begin(), size_ }; }
 
-        constexpr auto get_config() const -> const Config& { return config_; }
+        [[nodiscard]] constexpr auto get_config() const -> const Config& { return config_; }
 
-        auto is_end_of_file() const -> bool { return end_of_file_; }
+        [[nodiscard]] constexpr auto get_n_entries() const -> std::size_t { return n_entries_; }
+
+        [[nodiscard]] auto is_end_of_file() const -> bool { return end_of_file_; }
 
       private:
         BufferType entry_buffer_;        //!< A vector containing all entrypoints of the current entry.
@@ -77,7 +79,8 @@ namespace centipede::reader
         Config config_;                  //!< Member variable for the configuration.
         std::ifstream input_file_;       //!< Input file handler
         std::size_t size_{};             //!< Number of Entrypoints in the current entry
-        bool end_of_file_{ false };      //!< Indicates if end of file is reached. Gets updated on read.
+        std::size_t n_entries_{};
+        bool end_of_file_{ false }; //!< Indicates if end of file is reached. Gets updated on read.
 
         void reset();
         auto read_entry_to_buffer(uint32_t read_size) -> EnumError<>;

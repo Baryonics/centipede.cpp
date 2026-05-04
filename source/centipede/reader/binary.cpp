@@ -137,6 +137,7 @@ namespace centipede::reader
         {
             return std::unexpected{ ErrorCode::reader_file_fail_to_open };
         }
+        n_entries_ = 0Z;
         end_of_file_ = false;
         return {};
     }
@@ -171,6 +172,7 @@ namespace centipede::reader
         {
             return std::unexpected{ size.error() };
         }
+        ++n_entries_;
         size_ = size.value();
         return size.value();
     }
