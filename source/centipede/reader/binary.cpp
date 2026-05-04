@@ -11,8 +11,10 @@
 #include <functional>
 #include <ios>
 #include <iterator>
+#include <optional>
 #include <ranges>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 namespace centipede::reader
@@ -74,47 +76,82 @@ namespace centipede::reader
                 svs::chunk_by([](const auto& current, const auto& next) -> auto
                               { return std::get<0>(current) / chunk_size == std::get<0>(next) / chunk_size; }) |
                 svs::transform([](auto&& chunk) -> auto { return chunk | svs::values; });
-            auto is_ok = srs::all_of(svs::zip_transform(
-                                         [&size](auto&& chunk, auto&& entrypoint) -> bool
-                                         {
-                                             auto iter = chunk.begin();
-                                             auto end = chunk.end();
-                                             if (srs::size(*iter) != 1U)
-                                             {
-                                                 return false;
-                                             }
-                                             entrypoint.set_measurement(std::get<1>(*(*iter).begin()));
-                                             if (++iter == end)
-                                             {
-                                                 return false;
-                                             }
-                                             for (const auto& global : *iter)
-                                             {
-                                                 entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                             }
-                                             if (++iter == end)
-                                             {
-                                                 return false;
-                                             }
-                                             if (srs::size(*iter) != 1U)
-                                             {
-                                                 return false;
-                                             }
-                                             entrypoint.set_sigma(std::get<1>(*(*iter).begin()));
-                                             if (++iter == end)
-                                             {
-                                                 return false;
-                                             }
-                                             for (const auto& local : *(iter++) | svs::values)
-                                             {
-                                                 entrypoint.add_local(local);
-                                             }
-                                             ++size;
-                                             return iter == chunk.end();
-                                         },
-                                         chunks,
-                                         output),
-                                     std::identity{});
+            auto is_ok =
+                srs::all_of(svs::zip_transform(
+                                [&size](auto&& chunk, auto&& entrypoint) -> bool
+                                {
+                                    auto iter = chunk.begin();
+                                    auto end = chunk.end();
+                                    using OptIter = std::optional<decltype(iter)>;
+                                    auto has_one = [](auto iterator) -> OptIter
+                                    {
+                                        if (srs::size(*iterator) == 1U)
+                                        {
+                                            return iterator;
+                                        }
+                                        return {};
+                                    };
+
+                                    auto is_end = [&end](auto iterator) -> OptIter
+                                    {
+                                        if (++iterator != end)
+                                        {
+                                            return iterator;
+                                        }
+                                        return {};
+                                    };
+
+                                    return OptIter{ iter }
+                                        .and_then(has_one)
+                                        .transform(
+                                            [&entrypoint](auto iterator) -> auto
+                                            {
+                                                entrypoint.set_measurement(std::get<1>(*(*iterator).begin()));
+                                                return iterator;
+                                            })
+                                        .and_then(is_end)
+                                        .transform(
+                                            [&entrypoint](auto iterator) -> auto
+                                            {
+                                                for (const auto& global : *iterator)
+                                                {
+                                                    entrypoint.add_global(std::get<0>(global), std::get<1>(global));
+                                                }
+                                                return iterator;
+                                            })
+                                        .and_then(is_end)
+                                        .and_then(has_one)
+                                        .transform(
+                                            [&entrypoint](auto iterator) -> auto
+                                            {
+                                                entrypoint.set_sigma(std::get<1>(*(*iterator).begin()));
+                                                return iterator;
+                                            })
+                                        .and_then(is_end)
+                                        .transform(
+                                            [&entrypoint](auto iterator) -> auto
+                                            {
+                                                for (const auto& local : *(iterator++) | svs::values)
+                                                {
+                                                    entrypoint.add_local(local);
+                                                }
+                                                return iterator;
+                                            })
+                                        .and_then(
+                                            [&size, &end](auto iterator) -> OptIter
+                                            {
+                                                if (iterator == end)
+                                                {
+                                                    ++size;
+                                                    return iterator;
+                                                }
+                                                return {};
+                                            })
+                                        .has_value();
+                                },
+                                chunks,
+                                output),
+                            std::identity{});
             if (not is_ok)
             {
                 return std::unexpected{ ErrorCode::reader_file_fail_to_read };
