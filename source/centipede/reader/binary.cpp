@@ -94,13 +94,14 @@ namespace centipede::reader
 
         auto chunk_handle_sigma(auto chunk_ptr)
         {
+            assert(chunk_ptr.entrypoint != nullptr);
             chunk_ptr.entrypoint->set_sigma(std::get<1>(*(*(chunk_ptr.iter)).begin()));
             return chunk_ptr;
         }
 
         auto chunk_handle_locals(auto chunk_ptr)
         {
-
+            assert(chunk_ptr.entrypoint != nullptr);
             for (const auto& local : *(chunk_ptr.iter) | svs::values)
             {
                 chunk_ptr.entrypoint->add_local(local);
