@@ -1,4 +1,5 @@
 #include "binary.hpp"
+#include "centipede/data/entry.hpp"
 #include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <algorithm>
@@ -54,6 +55,67 @@ namespace centipede::reader
             return read_size;
         }
 
+        template <typename IterCursor, typename IterEnd>
+        struct ChunkPointer
+        {
+            IterCursor iter;
+            IterEnd end;
+            EntryPoint<>* entrypoint;
+            std::size_t current_size;
+        };
+
+        auto chunk_check_size_one(auto chunk_ptr)
+        {
+            assert(chunk_ptr.entrypoint != nullptr);
+            return (srs::size(*(chunk_ptr.iter)) == 1U) ? std::optional{ chunk_ptr } : std::nullopt;
+        }
+
+        auto chunk_not_end_and_increment(auto chunk_ptr)
+        {
+            assert(chunk_ptr.entrypoint != nullptr);
+            return (++(chunk_ptr.iter) != chunk_ptr.end) ? std::optional{ chunk_ptr } : std::nullopt;
+        }
+
+        auto chunk_handle_measurement(auto chunk_ptr)
+        {
+            assert(chunk_ptr.entrypoint != nullptr);
+            (chunk_ptr.entrypoint)->set_measurement(std::get<1>(*(*(chunk_ptr.iter)).begin()));
+            return chunk_ptr;
+        }
+
+        auto chunk_handle_globals(auto chunk_ptr)
+        {
+            assert(chunk_ptr.entrypoint != nullptr);
+            for (const auto& global : *(chunk_ptr.iter))
+            {
+                chunk_ptr.entrypoint->add_global(std::get<0>(global), std::get<1>(global));
+            }
+            return chunk_ptr;
+        }
+
+        auto chunk_handle_sigma(auto chunk_ptr)
+        {
+            chunk_ptr.entrypoint->set_sigma(std::get<1>(*(*(chunk_ptr.iter)).begin()));
+            return chunk_ptr;
+        }
+
+        auto chunk_handle_locals(auto chunk_ptr)
+        {
+
+            for (const auto& local : *(chunk_ptr.iter) | svs::values)
+            {
+                chunk_ptr.entrypoint->add_local(local);
+            }
+            ++(chunk_ptr.current_size);
+            return chunk_ptr;
+        }
+
+        auto chunk_end_after_increment(auto chunk_ptr)
+        {
+            assert(chunk_ptr.entrypoint != nullptr);
+            return (++(chunk_ptr.iter) == chunk_ptr.end) ? std::optional{ chunk_ptr } : std::nullopt;
+        }
+
         auto parse_entry_points(const Binary::RawBufferType& input, Binary::BufferType& output)
             -> EnumError<std::size_t>
         {
@@ -76,82 +138,30 @@ namespace centipede::reader
                 svs::chunk_by([](const auto& current, const auto& next) -> auto
                               { return std::get<0>(current) / chunk_size == std::get<0>(next) / chunk_size; }) |
                 svs::transform([](auto&& chunk) -> auto { return chunk | svs::values; });
-            auto is_ok =
-                srs::all_of(svs::zip_transform(
-                                [&size](auto&& chunk, auto&& entrypoint) -> bool
-                                {
-                                    auto iter = chunk.begin();
-                                    auto end = chunk.end();
-                                    using OptIter = std::optional<decltype(iter)>;
-                                    auto has_one = [](auto iterator) -> OptIter
-                                    {
-                                        if (srs::size(*iterator) == 1U)
-                                        {
-                                            return iterator;
-                                        }
-                                        return {};
-                                    };
 
-                                    auto is_end = [&end](auto iterator) -> OptIter
-                                    {
-                                        if (++iterator != end)
-                                        {
-                                            return iterator;
-                                        }
-                                        return {};
-                                    };
-
-                                    return OptIter{ iter }
-                                        .and_then(has_one)
-                                        .transform(
-                                            [&entrypoint](auto iterator) -> auto
-                                            {
-                                                entrypoint.set_measurement(std::get<1>(*(*iterator).begin()));
-                                                return iterator;
-                                            })
-                                        .and_then(is_end)
-                                        .transform(
-                                            [&entrypoint](auto iterator) -> auto
-                                            {
-                                                for (const auto& global : *iterator)
-                                                {
-                                                    entrypoint.add_global(std::get<0>(global), std::get<1>(global));
-                                                }
-                                                return iterator;
-                                            })
-                                        .and_then(is_end)
-                                        .and_then(has_one)
-                                        .transform(
-                                            [&entrypoint](auto iterator) -> auto
-                                            {
-                                                entrypoint.set_sigma(std::get<1>(*(*iterator).begin()));
-                                                return iterator;
-                                            })
-                                        .and_then(is_end)
-                                        .transform(
-                                            [&entrypoint](auto iterator) -> auto
-                                            {
-                                                for (const auto& local : *(iterator++) | svs::values)
-                                                {
-                                                    entrypoint.add_local(local);
-                                                }
-                                                return iterator;
-                                            })
-                                        .and_then(
-                                            [&size, &end](auto iterator) -> OptIter
-                                            {
-                                                if (iterator == end)
-                                                {
-                                                    ++size;
-                                                    return iterator;
-                                                }
-                                                return {};
-                                            })
-                                        .has_value();
-                                },
-                                chunks,
-                                output),
-                            std::identity{});
+            auto is_ok = srs::all_of(svs::zip_transform(
+                                         [&size](auto&& chunk, auto&& entrypoint) -> bool
+                                         {
+                                             auto chunk_ptr = ChunkPointer{ .iter = chunk.begin(),
+                                                                            .end = chunk.end(),
+                                                                            .entrypoint = &entrypoint,
+                                                                            .current_size = size };
+                                             using ChunkPtrType = decltype(chunk_ptr);
+                                             return chunk_check_size_one(chunk_ptr)
+                                                 .transform(chunk_handle_measurement<ChunkPtrType>)
+                                                 .and_then(chunk_not_end_and_increment<ChunkPtrType>)
+                                                 .transform(chunk_handle_globals<ChunkPtrType>)
+                                                 .and_then(chunk_not_end_and_increment<ChunkPtrType>)
+                                                 .and_then(chunk_check_size_one<ChunkPtrType>)
+                                                 .transform(chunk_handle_sigma<ChunkPtrType>)
+                                                 .and_then(chunk_not_end_and_increment<ChunkPtrType>)
+                                                 .transform(chunk_handle_locals<ChunkPtrType>)
+                                                 .and_then(chunk_end_after_increment<ChunkPtrType>)
+                                                 .has_value();
+                                         },
+                                         chunks,
+                                         output),
+                                     std::identity{});
             if (not is_ok)
             {
                 return std::unexpected{ ErrorCode::reader_file_fail_to_read };
