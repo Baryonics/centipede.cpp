@@ -174,7 +174,7 @@ namespace centipede::test
 
     TEST(reader, reset)
     {
-        // NOLINTBEGIN (readability-function-cognitive-complexity)
+        // NOLINTBEGIN(readability-function-cognitive-complexity)
         auto file_name = std::string{ "reader_reset.bin" };
         auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
         auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
