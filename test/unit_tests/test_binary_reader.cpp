@@ -172,7 +172,32 @@ namespace centipede::test
         // NOLINTEND(readability-function-cognitive-complexity)
     }
 
-    // TEST(reader, valid_multi_entry) {}
+    TEST(reader, reset)
+    {
+        auto file_name = std::string{ "reader_reset.bin" };
+        auto file = std::ofstream{ file_name, std::ios::out | std::ios::binary | std::ios::trunc };
+        auto output_buffer = Binary::RawBufferType{ { uint32_t{ 0 } }, { 0.F } };
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        fill_buffer(output_buffer, valid_measurement, valid_locals_data, valid_sigma, valid_globals_data);
+        write_to_file(file, output_buffer);
+        file.close();
+        auto reader = Binary{ Config{ .in_filename = file_name } };
+        auto init_err = reader.init();
+        EXPECT_TRUE(init_err);
+        auto read_err = reader.read_one_entry();
+        EXPECT_TRUE(read_err);
+        auto re_read_err = reader.read_one_entry();
+        EXPECT_TRUE(re_read_err);
+        auto read_result = reader.get_current_entry();
+        for (const auto& entrypoint : read_result)
+        {
+            EXPECT_TRUE(entrypoint.get_globals().empty());
+            EXPECT_TRUE(entrypoint.get_locals().empty());
+            EXPECT_EQ(entrypoint.get_measurement(), 0U);
+            EXPECT_EQ(entrypoint.get_sigma(), 0U);
+        }
+        reader.close();
+    }
 
     TEST(reader, invalid_zero_len_entry)
     {
