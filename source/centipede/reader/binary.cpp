@@ -226,7 +226,7 @@ namespace centipede::reader
 
     void Binary::reset()
     {
-        for (auto entrypoint : entry_buffer_)
+        for (auto& entrypoint : entry_buffer_)
         {
             entrypoint.reset();
         }
