@@ -41,10 +41,13 @@ namespace centipede::reader
      *
      *    while (not reader.is_end_of_file())
      *    {
-     *        read_err = reader.read_one_entry();
-     *        if (not read_err.has_value())
+     *        if (reader.read_one_entry())
      *        {
-     *            std::println(stderr, "Error: {}", read_err.error());
+     *            const auto& current_entry = reader.get_current_entry();
+     *        }
+     *        else
+     *        {
+     *            std::println(stderr, "Error: {}", read_error())
      *        }
      *    }
      *
