@@ -236,21 +236,25 @@ namespace centipede::reader
              */
             auto operator++() -> Iterator&
             {
+                if (stop_after_current_)
+                {
+                    is_done_ = true;
+                    stop_after_current_ = false;
+                    return *this;
+                }
                 auto result = reader_->read_one_entry();
-
                 if (not result)
                 {
                     current_ = std::unexpected{ result.error() };
-                    is_done_ = true;
+                    stop_after_current_ = true;
+                    is_done_ = false;
                     return *this;
                 }
-
                 if (reader_->is_end_of_file() or result.value() == 0U)
                 {
                     is_done_ = true;
                     return *this;
                 }
-
                 current_ = reader_->get_current_entry();
                 is_done_ = false;
                 return *this;
@@ -280,6 +284,7 @@ namespace centipede::reader
             Binary* reader_{};                   //!< Associated Binary reader instance.
             EntryResult current_{ EntrySpan{} }; //!< Current iterator value.
             bool is_done_{ false };              //!< Indicates if iteration reached end-of-range.
+            bool stop_after_current_{ false };
         };
 
         /**
