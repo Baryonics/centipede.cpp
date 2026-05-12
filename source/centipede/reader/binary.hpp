@@ -18,45 +18,52 @@ namespace centipede::reader
 {
     /**
      * @class Binary
-     * @brief Class for reading binary files.
-     * Data is read from the binary file entry-wise, for each entry contains multiple entrypoints (of type
-     * #centipede::EntryPoint). Before the initial read operation, #Binary::init() function needs to be called, where
-     * the file handler is opened and internal buffers get reset.
-     * To read one entry, #Binary::read_one_entry() needs to be called, which parses the file into the internal buffers.
-     * To obtain the current entry, #Binary::get_current_entry() needs to be called. Note that the internal buffers will
-     * be reset after every read, therefore #Binary::get_current_entry() has to be called before the next read.
+     * @brief Class for reading binary files entry-wise.
      *
-     * Configuration of the class is done via Binary::Config struct
+     * Data is read from the binary file entry-wise. Each entry contains multiple
+     * entrypoints of type #centipede::EntryPoint. Before reading, #Binary::init()
+     * must be called to open the file and initialize the internal buffers.
+     *
+     * The reader can be used as a input range. Each iteration reads one
+     * entry from the file and returns an #EntryResult. On success, the result
+     * contains an #EntrySpan referencing the current entry. On failure, it contains
+     * an #ErrorCode.
+     *
+     * Note that manual reading via #Binary::read_one_entry() and #Binary::get_current_entry()
+     * is also supported.
+     *
+     * Configuration of the class is done via Binary::Config.
      *
      * #### Example usage
      *
-     * ``` cpp
-     *auto reader = centipede::reader::Binary{ centipede::reader::Binary::Config{ .in_filename = "output.bin" } };
-     *auto init_err = reader.init();
+     * ```cpp
+     * auto reader = centipede::reader::Binary{
+     *     centipede::reader::Binary::Config{ .in_filename = "output.bin" }
+     * };
      *
-     *    if (not init_err.has_value())
-     *    {
-     *        std::println(stderr, "Error: {}", init_err.error());
-     *        return EXIT_FAILURE;
-     *    }
+     * auto init_err = reader.init();
+     * if (not init_err.has_value())
+     * {
+     *     std::println(stderr, "Error: {}", init_err.error());
+     *     return EXIT_FAILURE;
+     * }
      *
-     *    auto read_err = centipede::EnumError<std::size_t>{};
+     * for (const auto& entry : reader)
+     * {
+     *     if (not entry.has_value())
+     *     {
+     *         std::println(stderr, "Error: {}", entry.error());
+     *     }
      *
-     *    while (not reader.is_end_of_file())
-     *    {
-     *        if (reader.read_one_entry())
-     *        {
-     *            const auto& current_entry = reader.get_current_entry();
-     *        }
-     *        else
-     *        {
-     *            std::println(stderr, "Error: {}", read_error())
-     *        }
-     *    }
+     *     for (const auto& entrypoint : *entry)
+     *     {
+     *         // handle entryoint
+     *     }
+     * }
      *
-     *    std::println("N Entries: {}", reader.get_n_entries());
+     * std::println("N Entries: {}", reader.get_n_entries());
      * ```
-     **/
+     */
     class Binary
     {
       public:
@@ -132,7 +139,7 @@ namespace centipede::reader
          * - ErrorCode::reader_buffer_overflow if buffer size is too small.
          * - ErrorCode::reader_file_fail_to_read if the file stream is broken or file format is corrupted.
          * - #size_ on success
-         **/
+         */
         [[maybe_unused]] auto read_one_entry() -> EnumError<std::size_t>;
 
         /**
@@ -154,38 +161,78 @@ namespace centipede::reader
          * @brief Getter of n_entries_
          *
          * @return Total number of entries read by the current instance
-         **/
+         */
         [[nodiscard]] constexpr auto get_n_entries() const -> std::size_t { return n_entries_; }
 
         /**
          * @brief Checks if last read operation reached end of file.
          * @return Returns true if end of file is reached.
-         **/
+         */
         [[nodiscard]] auto is_end_of_file() const -> bool { return end_of_file_; }
 
         using EntrySpan = std::span<const BufferType::value_type>;
         using EntryResult = std::expected<EntrySpan, ErrorCode>;
 
+        /**
+         * @brief Sentinel type marking the end of a Binary reader range.
+         *
+         * The sentinel does not store state itself. End detection is handled by
+         * Binary::Iterator, which stops once EOF or an empty read is reached.
+         */
         class Sentinel
         {
         };
 
+        /**
+         * @brief Input iterator for entry-wise reading of a binary file.
+         *
+         * The iterator reads entries from the associated Binary reader. On
+         * construction, the first entry is read. Each increment reads the next entry.
+         *
+         * Dereferencing returns an EntryResult:
+         * - on success, the result contains an EntrySpan pointing to the current entry
+         *   stored in the reader's internal buffer;
+         * - on failure, the result contains the corresponding ErrorCode.
+         *
+         * The returned span is valid only until the iterator is incremented, because
+         * incrementing reads the next entry and resets/reuses the internal buffers.
+         */
         class Iterator
         {
           public:
+            /**
+             * @brief Constructs an iterator for the given Binary reader.
+             *
+             * Construction performs the first read operation.
+             *
+             * @param reader_ptr Pointer to the associated Binary reader instance.
+             */
             explicit Iterator(Binary* reader_ptr)
                 : reader_{ reader_ptr }
             {
                 ++(*this);
             }
 
-            using iterator_category = std::input_iterator_tag;
-            using difference_type = std::ptrdiff_t;
-            using value_type = EntryResult;
-            using reference = const EntryResult&;
+            using iterator_category = std::input_iterator_tag; //!< Iterator category type.
+            using difference_type = std::ptrdiff_t;            //!< Difference type.
+            using value_type = EntryResult;                    //!< Dereferenced value type.
+            using reference = const EntryResult&;              //!< Dereference reference type.
 
+            /**
+             * @brief Dereferences the iterator.
+             *
+             * @return Returns the current EntryResult.
+             */
             auto operator*() const -> const EntryResult& { return current_; }
 
+            /**
+             * @brief Advances the iterator to the next entry.
+             *
+             * Reads the next entry from the underlying Binary reader and updates the
+             * internal state accordingly.
+             *
+             * @return Reference to the incremented iterator.
+             */
             auto operator++() -> Iterator&
             {
                 auto result = reader_->read_one_entry();
@@ -208,6 +255,11 @@ namespace centipede::reader
                 return *this;
             }
 
+            /**
+             * @brief Post-increment operator.
+             *
+             * @return Copy of the iterator before incrementing.
+             */
             auto operator++(int) -> Iterator
             {
                 auto tmp = *this;
@@ -215,14 +267,32 @@ namespace centipede::reader
                 return tmp;
             }
 
+            /**
+             * @brief Compares iterator against the end sentinel.
+             *
+             * @param sentinel End sentinel.
+             * @return Returns true while iteration is not finished.
+             */
             auto operator!=(const Sentinel&) const -> bool { return not done_; }
 
           private:
-            Binary* reader_{};
-            EntryResult current_{ EntrySpan{} };
-            bool done_{ false };
+            Binary* reader_{};                   //!< Associated Binary reader instance.
+            EntryResult current_{ EntrySpan{} }; //!< Current iterator value.
+            bool done_{ false };                 //!< Indicates if iteration reached end-of-range.
         };
+
+        /**
+         * @brief Returns an iterator positioned at the first readable entry.
+         *
+         * @return Iterator initialized with the first entry read from file.
+         */
         auto begin() -> Iterator { return Iterator{ this }; }
+
+        /**
+         * @brief Returns the end sentinel of the Binary reader range.
+         *
+         * @return Sentinel representing the end of the range.
+         */
         auto end() const -> Sentinel { return Sentinel{}; }
 
       private:
