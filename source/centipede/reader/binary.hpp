@@ -29,8 +29,8 @@ namespace centipede::reader
      * contains an `EntrySpan` referencing the current entry. On failure, it contains
      * an `ErrorCode`.
      *
-     * Note that manual reading via #Binary::read_one_entry() and #Binary::get_current_entry()
-     * is also supported.
+     * Note that manual reading via #centipede::reader::Binary::read_one_entry() and
+     * #centipede::reader::Binary::get_current_entry() is also supported.
      *
      * Configuration of the class is done via Binary::Config.
      *

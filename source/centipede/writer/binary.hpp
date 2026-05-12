@@ -25,7 +25,8 @@ namespace centipede::writer
      * handler is opened and internal buffer resetted, ready for the next data input. When adding each entrypoint, the
      * writer doesn't write the corresponding data to the binary file, but rather pushes the data to its internal buffer
      * (see @ref Binary::data_buffer_). Data is only written to the binary file after calling
-     * #Binary::write_current_entry(). All entrypoints added before this call are grouped into the same entry.
+     * #centipede::writer::Binary::write_current_entry(). All entrypoints added before this call are grouped into the
+     * same entry.
      *
      * Configuration of the class is done via the Binary::Config struct.
      *
