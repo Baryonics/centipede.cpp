@@ -210,7 +210,7 @@ namespace centipede::reader
             explicit Iterator(Binary* reader_ptr)
                 : reader_{ reader_ptr }
             {
-                done_ = false;
+                is_done_ = false;
                 ++(*this);
             }
 
@@ -241,18 +241,18 @@ namespace centipede::reader
                 if (not result)
                 {
                     current_ = std::unexpected{ result.error() };
-                    done_ = true;
+                    is_done_ = true;
                     return *this;
                 }
 
                 if (reader_->is_end_of_file() or result.value() == 0U)
                 {
-                    done_ = true;
+                    is_done_ = true;
                     return *this;
                 }
 
                 current_ = reader_->get_current_entry();
-                done_ = false;
+                is_done_ = false;
                 return *this;
             }
 
@@ -274,12 +274,12 @@ namespace centipede::reader
              * @param sentinel End sentinel.
              * @return Returns true while iteration is not finished.
              */
-            auto operator!=(const Sentinel&) const -> bool { return not done_; }
+            auto operator!=(const Sentinel&) const -> bool { return not is_done_; }
 
           private:
             Binary* reader_{};                   //!< Associated Binary reader instance.
             EntryResult current_{ EntrySpan{} }; //!< Current iterator value.
-            bool done_{ false };                 //!< Indicates if iteration reached end-of-range.
+            bool is_done_{ false };              //!< Indicates if iteration reached end-of-range.
         };
 
         /**
