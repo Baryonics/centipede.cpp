@@ -176,34 +176,35 @@ namespace centipede::reader
             explicit Iterator(Binary* reader_ptr)
                 : reader_{ reader_ptr }
             {
+                ++(*this);
             }
 
             using iterator_category = std::input_iterator_tag;
             using difference_type = std::ptrdiff_t;
             using value_type = EntryResult;
-            using reference = EntryResult;
+            using reference = const EntryResult&;
 
-            auto operator*() const -> EntryResult
-            {
-                if (has_error_)
-                {
-                    return std::unexpected{ error_ };
-                }
-                return reader_->get_current_entry();
-            }
+            auto operator*() const -> const EntryResult& { return current_; }
 
             auto operator++() -> Iterator&
             {
                 auto result = reader_->read_one_entry();
+
                 if (not result)
                 {
-                    has_error_ = true;
-                    error_ = result.error();
+                    current_ = std::unexpected{ result.error() };
+                    done_ = false;
+                    return *this;
                 }
-                else
+
+                if (reader_->is_end_of_file() || result.value() == 0U)
                 {
-                    has_error_ = false;
+                    done_ = true;
+                    return *this;
                 }
+
+                current_ = reader_->get_current_entry();
+                done_ = false;
                 return *this;
             }
 
@@ -214,12 +215,12 @@ namespace centipede::reader
                 return tmp;
             }
 
-            auto operator!=(const Sentinel&) const -> bool { return not reader_->is_end_of_file(); }
+            auto operator!=(const Sentinel&) const -> bool { return not done_; }
 
           private:
-            Binary* reader_;
-            ErrorCode error_;
-            bool has_error_{ false };
+            Binary* reader_{};
+            EntryResult current_{ EntrySpan{} };
+            bool done_{ false };
         };
         auto begin() -> Iterator { return Iterator{ this }; }
         auto end() const -> Sentinel { return Sentinel{}; }
