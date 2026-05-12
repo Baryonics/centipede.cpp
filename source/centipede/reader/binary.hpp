@@ -2,10 +2,13 @@
 
 #include "centipede/data/entry.hpp"
 #include "centipede/util/common_definitions.hpp"
+#include "centipede/util/error_types.hpp"
 #include "centipede/util/return_types.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <fstream>
+#include <iterator>
 #include <span>
 #include <string>
 #include <utility>
@@ -159,6 +162,67 @@ namespace centipede::reader
          * @return Returns true if end of file is reached.
          **/
         [[nodiscard]] auto is_end_of_file() const -> bool { return end_of_file_; }
+
+        using EntrySpan = std::span<const BufferType::value_type>;
+        using EntryResult = std::expected<EntrySpan, ErrorCode>;
+
+        class Sentinel
+        {
+        };
+
+        class Iterator
+        {
+          public:
+            explicit Iterator(Binary* reader_ptr)
+                : reader_{ reader_ptr }
+            {
+            }
+
+            using iterator_category = std::input_iterator_tag;
+            using difference_type = std::ptrdiff_t;
+            using value_type = EntryResult;
+            using reference = EntryResult;
+
+            auto operator*() const -> EntryResult
+            {
+                if (has_error_)
+                {
+                    return std::unexpected{ error_ };
+                }
+                return reader_->get_current_entry();
+            }
+
+            auto operator++() -> Iterator&
+            {
+                auto result = reader_->read_one_entry();
+                if (not result)
+                {
+                    has_error_ = true;
+                    error_ = result.error();
+                }
+                else
+                {
+                    has_error_ = false;
+                }
+                return *this;
+            }
+
+            auto operator++(int) -> Iterator
+            {
+                auto tmp = *this;
+                ++(*this);
+                return tmp;
+            }
+
+            auto operator!=(const Sentinel&) const -> bool { return not reader_->is_end_of_file(); }
+
+          private:
+            Binary* reader_;
+            ErrorCode error_;
+            bool has_error_{ false };
+        };
+        auto begin() -> Iterator { return Iterator{ this }; }
+        auto end() const -> Sentinel { return Sentinel{}; }
 
       private:
         BufferType entry_buffer_;        //!< A vector containing all entrypoints of the current entry.
