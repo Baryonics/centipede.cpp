@@ -210,6 +210,7 @@ namespace centipede::reader
             explicit Iterator(Binary* reader_ptr)
                 : reader_{ reader_ptr }
             {
+                done_ = false;
                 ++(*this);
             }
 
@@ -240,7 +241,7 @@ namespace centipede::reader
                 if (not result)
                 {
                     current_ = std::unexpected{ result.error() };
-                    done_ = false;
+                    done_ = true;
                     return *this;
                 }
 
