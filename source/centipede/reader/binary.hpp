@@ -26,7 +26,7 @@ namespace centipede::reader
      *
      * The reader can be used as a input range. Each iteration reads one
      * entry from the file and returns an `EntryResult`. On success, the result
-     * contains an `EntrySpan`` referencing the current entry. On failure, it contains
+     * contains an `EntrySpan` referencing the current entry. On failure, it contains
      * an `ErrorCode`.
      *
      * Note that manual reading via #Binary::read_one_entry() and #Binary::get_current_entry()
