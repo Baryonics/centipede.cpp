@@ -244,7 +244,7 @@ namespace centipede::reader
                     return *this;
                 }
 
-                if (reader_->is_end_of_file() || result.value() == 0U)
+                if (reader_->is_end_of_file() or result.value() == 0U)
                 {
                     done_ = true;
                     return *this;
