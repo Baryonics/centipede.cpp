@@ -25,9 +25,9 @@ namespace centipede::reader
      * must be called to open the file and initialize the internal buffers.
      *
      * The reader can be used as a input range. Each iteration reads one
-     * entry from the file and returns an #EntryResult. On success, the result
-     * contains an #EntrySpan referencing the current entry. On failure, it contains
-     * an #ErrorCode.
+     * entry from the file and returns an `EntryResult`. On success, the result
+     * contains an `EntrySpan`` referencing the current entry. On failure, it contains
+     * an `ErrorCode`.
      *
      * Note that manual reading via #Binary::read_one_entry() and #Binary::get_current_entry()
      * is also supported.
@@ -273,7 +273,6 @@ namespace centipede::reader
             /**
              * @brief Compares iterator against the end sentinel.
              *
-             * @param sentinel End sentinel.
              * @return Returns true while iteration is not finished.
              */
             auto operator!=(const Sentinel&) const -> bool { return state_ != State::done; }
