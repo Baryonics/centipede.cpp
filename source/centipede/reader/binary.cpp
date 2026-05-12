@@ -60,7 +60,7 @@ namespace centipede::reader
             IterCursor iter;
             IterEnd end;
             EntryPoint<>* entrypoint;
-            std::size_t current_size;
+            std::size_t& current_size;
         };
 
         auto chunk_check_size_one(auto chunk_ptr)

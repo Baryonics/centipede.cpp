@@ -156,6 +156,7 @@ namespace centipede::test
         auto read_err = reader.read_one_entry();
         EXPECT_TRUE(read_err);
         auto read_result = reader.get_current_entry();
+        ASSERT_FALSE(read_result.empty());
         for (const auto& entrypoint : read_result)
         {
             EXPECT_EQ(valid_locals_data.second, entrypoint.get_locals());
