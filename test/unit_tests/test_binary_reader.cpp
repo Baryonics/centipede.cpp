@@ -153,21 +153,22 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        EXPECT_TRUE(read_err);
-        auto read_result = reader.get_current_entry();
-        ASSERT_FALSE(read_result.empty());
-        for (const auto& entrypoint : read_result)
+        for (const auto& entry : reader)
         {
-            EXPECT_EQ(valid_locals_data.second, entrypoint.get_locals());
-            auto expected_globals = std::views::zip_transform([](const auto& index, const auto& value) -> auto
-                                                              { return std::pair{ index, value }; },
-                                                              valid_globals_data.first,
-                                                              valid_globals_data.second) |
-                                    std::ranges::to<std::vector>();
-            EXPECT_EQ(expected_globals, entrypoint.get_globals());
-            EXPECT_EQ(entrypoint.get_measurement(), valid_measurement);
-            EXPECT_EQ(entrypoint.get_sigma(), valid_sigma);
+            ASSERT_TRUE(entry.has_value());
+            ASSERT_FALSE(entry->empty());
+            for (const auto& entrypoint : *entry)
+            {
+                EXPECT_EQ(valid_locals_data.second, entrypoint.get_locals());
+                auto expected_globals = std::views::zip_transform([](const auto& index, const auto& value) -> auto
+                                                                  { return std::pair{ index, value }; },
+                                                                  valid_globals_data.first,
+                                                                  valid_globals_data.second) |
+                                        std::ranges::to<std::vector>();
+                EXPECT_EQ(expected_globals, entrypoint.get_globals());
+                EXPECT_EQ(entrypoint.get_measurement(), valid_measurement);
+                EXPECT_EQ(entrypoint.get_sigma(), valid_sigma);
+            }
         }
         reader.close();
         // NOLINTEND(readability-function-cognitive-complexity)
@@ -188,15 +189,17 @@ namespace centipede::test
         EXPECT_TRUE(init_err);
         auto read_err = reader.read_one_entry();
         EXPECT_TRUE(read_err);
-        auto re_read_err = reader.read_one_entry();
-        EXPECT_TRUE(re_read_err);
-        auto read_result = reader.get_current_entry();
-        for (const auto& entrypoint : read_result)
+
+        for (const auto& entry : reader)
         {
-            EXPECT_TRUE(entrypoint.get_globals().empty());
-            EXPECT_TRUE(entrypoint.get_locals().empty());
-            EXPECT_EQ(entrypoint.get_measurement(), 0U);
-            EXPECT_EQ(entrypoint.get_sigma(), 0U);
+            ASSERT_TRUE(entry.has_value());
+            for (const auto& entrypoint : *entry)
+            {
+                EXPECT_TRUE(entrypoint.get_globals().empty());
+                EXPECT_TRUE(entrypoint.get_locals().empty());
+                EXPECT_EQ(entrypoint.get_measurement(), 0U);
+                EXPECT_EQ(entrypoint.get_sigma(), 0U);
+            }
         }
         reader.close();
         // NOLINTEND(readability-function-cognitive-complexity)
@@ -213,9 +216,11 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+            ASSERT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -232,9 +237,11 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+            ASSERT_FALSE(entry);
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -253,9 +260,11 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+            ASSERT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -276,9 +285,12 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+
+            ASSERT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -293,9 +305,11 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+            ASSERT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -312,9 +326,11 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        EXPECT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+            EXPECT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -346,9 +362,12 @@ namespace centipede::test
         auto reader = Binary{ Config{ .in_filename = file_name } };
         auto init_err = reader.init();
         EXPECT_TRUE(init_err);
-        auto read_err = reader.read_one_entry();
-        EXPECT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
+        for (const auto& entry : reader)
+        {
+
+            EXPECT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 
@@ -396,16 +415,14 @@ namespace centipede::test
         constexpr auto invalid_header = char{ 42 };
         file.write(&invalid_header, 1);
         file.close();
-
         auto reader = Binary{ Config{ .in_filename = file_name } };
-
         auto init_err = reader.init();
         ASSERT_TRUE(init_err);
-
-        auto read_err = reader.read_one_entry();
-        ASSERT_FALSE(read_err);
-        EXPECT_EQ(read_err.error(), ErrorCode::reader_file_fail_to_read);
-
+        for (const auto& entry : reader)
+        {
+            ASSERT_FALSE(entry.has_value());
+            EXPECT_EQ(entry.error(), ErrorCode::reader_file_fail_to_read);
+        }
         reader.close();
     }
 } // namespace centipede::test
