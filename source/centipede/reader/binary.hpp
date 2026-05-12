@@ -210,7 +210,7 @@ namespace centipede::reader
             explicit Iterator(Binary* reader_ptr)
                 : reader_{ reader_ptr }
             {
-                is_done_ = false;
+                state_ = State::valid;
                 ++(*this);
             }
 
@@ -236,27 +236,25 @@ namespace centipede::reader
              */
             auto operator++() -> Iterator&
             {
-                if (stop_after_current_)
+                if (state_ == State::emit_error)
                 {
-                    is_done_ = true;
-                    stop_after_current_ = false;
+                    state_ = State::done;
                     return *this;
                 }
                 auto result = reader_->read_one_entry();
                 if (not result)
                 {
                     current_ = std::unexpected{ result.error() };
-                    stop_after_current_ = true;
-                    is_done_ = false;
+                    state_ = State::emit_error;
                     return *this;
                 }
                 if (reader_->is_end_of_file() or result.value() == 0U)
                 {
-                    is_done_ = true;
+                    state_ = State::done;
                     return *this;
                 }
                 current_ = reader_->get_current_entry();
-                is_done_ = false;
+                state_ = State::valid;
                 return *this;
             }
 
@@ -278,13 +276,18 @@ namespace centipede::reader
              * @param sentinel End sentinel.
              * @return Returns true while iteration is not finished.
              */
-            auto operator!=(const Sentinel&) const -> bool { return not is_done_; }
+            auto operator!=(const Sentinel&) const -> bool { return state_ != State::done; }
 
           private:
+            enum class State
+            {
+                valid,
+                emit_error,
+                done
+            };
             Binary* reader_{};                   //!< Associated Binary reader instance.
             EntryResult current_{ EntrySpan{} }; //!< Current iterator value.
-            bool is_done_{ false };              //!< Indicates if iteration reached end-of-range.
-            bool stop_after_current_{ false };
+            State state_{ State::done };
         };
 
         /**
