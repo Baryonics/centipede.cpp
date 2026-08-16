@@ -257,8 +257,8 @@ namespace centipede
         indicators::ProgressBar bar_{
             indicators::option::BarWidth{ config_.bar_width },
             indicators::option::Start{ " [" },
-            indicators::option::Fill{ "█" },
-            indicators::option::Lead{ "█" },
+            indicators::option::Fill{ "=" },
+            indicators::option::Lead{ ">" },
 
         };
         // indicators::ProgressBar bar_{ indicators::option::BarWidth{ config_.bar_width },
