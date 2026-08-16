@@ -32,6 +32,8 @@ namespace centipede
             std::string label_text;
         };
 
+        ProgressIndicator() = default;
+
         explicit ProgressIndicator(Config config)
             : config_(std::move(config))
         {
@@ -42,13 +44,16 @@ namespace centipede
         ProgressIndicator(const ProgressIndicator&) = delete;
         ProgressIndicator& operator=(const ProgressIndicator&) = delete;
 
-        auto adaptor() & { return ProgressAdaptor{ this }; }
-        auto adaptor() && = delete;
+        // auto adaptor() & { return ProgressAdaptor{ this }; }
+        // auto adaptor() && = delete;
 
       private:
         template <std::ranges::view BaseView, is_increment_function IncrementFunctionT>
         struct ProgressView : std::ranges::view_interface<ProgressView<BaseView, IncrementFunctionT>>
         {
+            using IteratorType = std::ranges::iterator_t<BaseView>;
+            using SentinelType = std::ranges::sentinel_t<BaseView>;
+
             ProgressView(BaseView&& view,
                          std::size_t total_size,
                          IncrementFunctionT&& inc_func,
@@ -58,26 +63,111 @@ namespace centipede
                 , increment_function(std::move(inc_func))
                 , progress_indicator(indicator)
             {
+                assert(progress_indicator);
             }
 
-            auto begin() {}
-            auto end() {}
+            auto begin()
+            {
+                assert(progress_indicator);
+
+                if (total_size_n == 0UZ)
+                {
+                    progress_indicator->status_ = ErrorCode::progress_zero_size;
+                    progress_indicator->bar_.mark_as_completed();
+                }
+
+                return Iterator{ this, std::ranges::begin(base_view), std::ranges::end(base_view) };
+            }
+
+            auto end() { return Sentinel{}; }
 
             struct Sentinel
             {
             };
 
-            struct Iterator
+            class Iterator
             {
-                auto operator++() -> Iterator& {}
+              public:
+                Iterator(ProgressView* progress_view, IteratorType current_it, SentinelType end_it)
+                    : progress_view_(progress_view)
+                    , current_it_(std::move(current_it))
+                    , end_it_(std::move(end_it))
+                {
+                    assert(progress_view_);
+                    assert(progress_view_->progress_indicator);
+                }
 
-                auto operator*() {}
+                auto operator++() -> Iterator&
+                {
+                    assert(current_it_ != end_it_);
 
-                bool operator==(Sentinel) {}
-                bool operator!=(Sentinel sentinel) {}
+                    add_progress();
+                    ++current_it_;
 
-                bool operator==(Sentinel) const {}
-                bool operator!=(Sentinel sentinel) const {}
+                    return *this;
+                }
+
+                decltype(auto) operator*() const
+                {
+                    assert(current_it_ != end_it_);
+                    return *current_it_;
+                }
+
+                bool operator==(Sentinel) const { return current_it_ == end_it_; }
+
+                bool operator!=(Sentinel sentinel) const { return !(*this == sentinel); }
+
+              private:
+                void add_progress()
+                {
+                    assert(progress_view_);
+                    assert(progress_view_->progress_indicator);
+
+                    auto& indicator = *progress_view_->progress_indicator;
+
+                    if (progress_view_->total_size_n == 0UZ)
+                    {
+                        indicator.status_ = ErrorCode::progress_zero_size;
+                        return;
+                    }
+
+                    assert(count_n_ <= progress_view_->total_size_n);
+
+                    const auto increment = progress_view_->increment_function(); // NOTE: std::invoke?
+
+                    if (increment == 0UZ)
+                    {
+                        indicator.status_ = ErrorCode::progress_inc_returns_zero;
+                        return;
+                    }
+
+                    const auto remaining = progress_view_->total_size_n - count_n_;
+
+                    if (increment > remaining)
+                    {
+                        count_n_ = progress_view_->total_size_n;
+
+                        indicator.status_ = ErrorCode::progress_inc_exceeds_size;
+                    }
+                    else
+                    {
+                        count_n_ += increment;
+                    }
+
+                    const auto percent = 100UZ * count_n_ / progress_view_->total_size_n;
+
+                    indicator.bar_.set_progress(percent);
+
+                    if (count_n_ == progress_view_->total_size_n)
+                    {
+                        indicator.status_ = ErrorCode::success;
+                    }
+                }
+
+                ProgressView* progress_view_ = nullptr;
+                IteratorType current_it_;
+                SentinelType end_it_;
+                std::size_t count_n_{};
             };
 
             BaseView base_view;
@@ -170,6 +260,9 @@ namespace centipede
                                       indicators::option::FontStyles{
                                           std::vector<indicators::FontStyle>{ indicators::FontStyle::bold } } };
         ErrorCode status_{};
+
+      public:
+        ProgressAdaptor adaptor{ this };
     };
 } // namespace centipede
 
