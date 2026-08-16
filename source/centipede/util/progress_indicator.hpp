@@ -98,8 +98,8 @@ namespace centipede
               public:
                 Iterator(ProgressView* progress_view, IteratorType current_it, SentinelType end_it)
                     : progress_view_(progress_view)
-                    , current_it_(std::move(current_it))
-                    , end_it_(std::move(end_it))
+                    , current_it_(current_it)
+                    , end_it_(end_it)
                 {
                     assert(progress_view_);
                     assert(progress_view_->progress_indicator);
