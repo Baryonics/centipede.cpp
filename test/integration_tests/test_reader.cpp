@@ -28,8 +28,8 @@ auto main() -> int
     std::size_t total_read{};
 
     for ([[maybe_unused]] const auto& entry :
-         reader |
-             progress_indicator.adaptor(reader.get_file_size(), [&reader]() { return reader.get_last_entry_bytes(); }))
+         reader | progress_indicator.get_adaptor(reader.get_file_size(),
+                                                 [&reader]() { return reader.get_last_entry_bytes(); }))
     {
         total_read += reader.get_last_entry_bytes();
     }

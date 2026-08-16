@@ -44,8 +44,16 @@ namespace centipede
         ProgressIndicator(const ProgressIndicator&) = delete;
         ProgressIndicator& operator=(const ProgressIndicator&) = delete;
 
-        // auto adaptor() & { return ProgressAdaptor{ this }; }
-        // auto adaptor() && = delete;
+        auto get_adaptor() & { return adaptor_; }
+
+        template <typename... Args>
+        auto get_adaptor(Args&&... args) &
+        {
+            return adaptor_(std::forward<Args>(args)...);
+        }
+
+        template <typename... Args>
+        auto get_adaptor(Args&&...) && = delete;
 
       private:
         template <std::ranges::view BaseView, is_increment_function IncrementFunctionT>
@@ -260,9 +268,7 @@ namespace centipede
                                       indicators::option::FontStyles{
                                           std::vector<indicators::FontStyle>{ indicators::FontStyle::bold } } };
         ErrorCode status_{};
-
-      public:
-        ProgressAdaptor adaptor{ this };
+        ProgressAdaptor adaptor_{ this };
     };
 } // namespace centipede
 
