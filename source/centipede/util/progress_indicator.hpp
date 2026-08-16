@@ -22,7 +22,7 @@ namespace centipede
     concept is_increment_function = std::invocable<F> && std::same_as<std::invoke_result_t<F>, std::size_t>;
 
     template <typename R>
-    concept is_range = std::ranges::range<R>;
+    concept is_range = std::ranges::sized_range<R>;
 
     class ProgressIndicator
     {
@@ -82,7 +82,7 @@ namespace centipede
 
             auto operator()(is_range auto&& range)
             {
-                return ProgressView{ std::views::all(std::forward(range)),
+                return ProgressView{ std::views::all(std::forward<decltype(range)>(range)),
                                      std::ranges::size(range),
                                      []() { return 1UZ; },
                                      progress_indicator };
@@ -90,46 +90,51 @@ namespace centipede
 
             auto operator()(is_range auto&& range, std::size_t total_size, is_increment_function auto&& inc_func)
             {
-                return ProgressView{ std::views::all(std::forward(range), total_size, std::move(inc_func)) };
+                return ProgressView{ std::views::all(std::forward<decltype(range)>(range)),
+                                     total_size,
+                                     std::move(inc_func),
+                                     progress_indicator };
             }
 
             auto operator()(is_range auto&& range, std::size_t total_size)
             {
-                return ProgressView{ std::views::all(std::forward(range), total_size, []() { return 1UZ; }) };
+                return ProgressView{ std::views::all(std::forward<decltype(range)>(range)),
+                                     total_size,
+                                     []() { return 1UZ; },
+                                     progress_indicator };
             }
 
             auto operator()(std::size_t total_size)
             {
-                return ProgressClosure{ this, total_size, []() { return 1UZ; } };
+                return ProgressClosure{ total_size, []() { return 1UZ; }, progress_indicator };
             }
 
             auto operator()(std::size_t total_size, is_increment_function auto&& inc_func)
             {
-                return ProgressClosure{ this, total_size, std::move(inc_func) };
+                return ProgressClosure{ progress_indicator, total_size, std::move(inc_func), progress_indicator };
             }
 
             template <is_increment_function IncrementFunctionT>
             struct ProgressClosure : std::ranges::range_adaptor_closure<ProgressClosure<IncrementFunctionT>>
             {
-                ProgressClosure(ProgressAdaptor* adaptor, std::size_t total_size, IncrementFunctionT&& inc_func)
-                    : progress_adaptor(adaptor)
-                    , total_size_n(total_size)
+                ProgressClosure(std::size_t total_size, IncrementFunctionT&& inc_func, ProgressIndicator* indicator)
+                    : total_size_n(total_size)
                     , increment_function(std::move(inc_func))
+                    , progress_indicator(indicator)
                 {
                 }
 
                 auto operator()(is_range auto&& range)
                 {
-                    return ProgressView{
-                        std::views::all(std::forward(range)),
-                        total_size_n,
-                        std::move(increment_function),
-                    };
+                    return ProgressView{ std::views::all(std::forward<decltype(range)>(range)),
+                                         total_size_n,
+                                         std::move(increment_function),
+                                         progress_indicator };
                 }
 
-                ProgressAdaptor* progress_adaptor = nullptr;
                 std::size_t total_size_n{};
                 IncrementFunctionT increment_function{};
+                ProgressIndicator* progress_indicator = nullptr;
             };
 
             ProgressIndicator* progress_indicator = nullptr;
