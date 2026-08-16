@@ -254,19 +254,20 @@ namespace centipede
         };
 
         Config config_{};
-        indicators::ProgressBar bar_{ indicators::option::BarWidth{ config_.bar_width },
-                                      indicators::option::Start{ " [" },
-                                      indicators::option::Fill{ "█" },
-                                      indicators::option::Lead{ "█" },
-                                      indicators::option::Remainder{ "-" },
-                                      indicators::option::End{ "]" },
-                                      indicators::option::PrefixText{ config_.label_text },
-                                      indicators::option::ForegroundColor{ indicators::Color::yellow },
-                                      indicators::option::ShowPercentage{ true },
-                                      indicators::option::ShowElapsedTime{ true },
-                                      indicators::option::ShowRemainingTime{ true },
-                                      indicators::option::FontStyles{
-                                          std::vector<indicators::FontStyle>{ indicators::FontStyle::bold } } };
+        indicators::ProgressBar bar_{};
+        // indicators::ProgressBar bar_{ indicators::option::BarWidth{ config_.bar_width },
+        //                               indicators::option::Start{ " [" },
+        //                               indicators::option::Fill{ "█" },
+        //                               indicators::option::Lead{ "█" },
+        //                               indicators::option::Remainder{ "-" },
+        //                               indicators::option::End{ "]" },
+        //                               indicators::option::PrefixText{ config_.label_text },
+        //                               indicators::option::ForegroundColor{ indicators::Color::yellow },
+        //                               indicators::option::ShowPercentage{ true },
+        //                               indicators::option::ShowElapsedTime{ true },
+        //                               indicators::option::ShowRemainingTime{ true },
+        //                               indicators::option::FontStyles{
+        //                                   std::vector<indicators::FontStyle>{ indicators::FontStyle::bold } } };
         ErrorCode status_{};
         ProgressAdaptor adaptor_{ this };
     };
